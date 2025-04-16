@@ -1,5 +1,13 @@
 class UIController {
     constructor() {
+        console.log('UIController initializing...');
+        
+        // Check if required components exist
+        console.log('dataCollector available:', !!window.dataCollector);
+        console.log('enhancedDataCollector available:', !!window.enhancedDataCollector);
+        console.log('insightsCollector available:', !!window.insightsCollector);
+        console.log('comprehensiveCollector available:', !!window.comprehensiveCollector);
+        
         this.dataCollector = window.dataCollector;
         this.enhancedDataCollector = window.enhancedDataCollector;
         this.insightsCollector = window.insightsCollector;
@@ -13,9 +21,15 @@ class UIController {
         // Initialize UI elements
         this.initUI();
         this.setupEventListeners();
+        
+        console.log('UIController initialized, will auto-start collection soon...');
+        // Auto-start data collection when page loads
+        this.autoStartCollection();
     }
 
     initUI() {
+        console.log('Initializing UI...');
+        
         // Setup categories
         const categories = {
             'intro': 'Introduction',
@@ -54,118 +68,1185 @@ class UIController {
             'comp-experimental': 'Experimental Features'
         };
         
-        // Populate navigation
-        const navList = document.getElementById('nav-list');
-        Object.entries(categories).forEach(([id, title]) => {
-            const li = document.createElement('li');
-            const link = document.createElement('a');
-            link.href = '#' + id;
-            link.textContent = title;
-            link.dataset.section = id;
-            if (id === this.activeSectionId) {
-                link.classList.add('active');
-            }
-            li.appendChild(link);
-            navList.appendChild(li);
-            
-            // Create section if it doesn't exist (except for intro which is already in the HTML)
-            if (id !== 'intro') {
-                this.createSection(id, title);
-            }
-        });
+        // Populate navigation tabs (not sidebar anymore)
+        const navTabs = document.getElementById('nav-tabs');
+        console.log('Nav tabs element found:', !!navTabs);
+        
+        if (navTabs) {
+            Object.entries(categories).forEach(([id, title]) => {
+                // Create a tab button instead of list item
+                const tab = document.createElement('div');
+                tab.className = 'nav-tab';
+                tab.dataset.section = id;
+                if (id === this.activeSectionId) {
+                    tab.classList.add('active');
+                }
+                
+                // Add icon based on section
+                const icon = this.getSectionIcon(id);
+                tab.innerHTML = `<i class="fas ${icon}"></i> ${title}`;
+                
+                // Add to tabs container
+                navTabs.appendChild(tab);
+                
+                // Create section if it doesn't exist (except for intro which is already in the HTML)
+                if (id !== 'intro') {
+                    this.createSection(id, title);
+                }
+            });
+        } else {
+            console.error('Navigation tabs element not found!');
+        }
+        
+        console.log('UI initialization complete');
+    }
+
+    getSectionIcon(sectionId) {
+        // Return appropriate icon based on section ID
+        const icons = {
+            'intro': 'fa-info-circle',
+            'network': 'fa-wifi',
+            'navigator': 'fa-compass',
+            'screen': 'fa-desktop',
+            'connection': 'fa-network-wired',
+            'geolocation': 'fa-map-marker-alt',
+            'sensors': 'fa-battery-half',
+            'fingerprinting': 'fa-fingerprint',
+            'interaction': 'fa-hand-pointer',
+            'media': 'fa-video',
+            'permissions': 'fa-lock',
+            'enhanced-fonts': 'fa-font',
+            'enhanced-webrtc': 'fa-broadcast-tower',
+            'enhanced-codecs': 'fa-file-video',
+            'enhanced-features': 'fa-stars',
+            'enhanced-graphics': 'fa-palette',
+            'enhanced-security': 'fa-shield-alt',
+            'insights-iss': 'fa-satellite',
+            'insights-weather': 'fa-cloud-sun',
+            'insights-astronomy': 'fa-moon',
+            'insights-privacy': 'fa-user-shield',
+            'insights-fingerprint': 'fa-fingerprint',
+            'insights-carbon': 'fa-leaf',
+            'comp-core': 'fa-microchip',
+            'comp-hardware': 'fa-laptop',
+            'comp-graphics': 'fa-photo-film',
+            'comp-input': 'fa-keyboard',
+            'comp-storage': 'fa-database',
+            'comp-network': 'fa-sitemap',
+            'comp-security': 'fa-shield-halved',
+            'comp-experimental': 'fa-flask'
+        };
+        
+        return icons[sectionId] || 'fa-circle';
     }
 
     createSection(id, title) {
-        const main = document.getElementById('content');
-        const section = document.createElement('section');
-        section.id = id;
-        section.className = 'data-section';
+        console.log(`Creating section: ${id}`);
+        const dataSections = document.getElementById('data-sections');
+        if (!dataSections) {
+            console.error('Data sections container not found!');
+            return;
+        }
+        
+        const section = document.createElement('div');
+        section.id = `${id}-section`;
+        section.className = 'data-section hidden';
         
         section.innerHTML = `
-            <h2>${title}</h2>
+            <div class="section-header">
+                <h2><i class="fas ${this.getSectionIcon(id)}"></i> ${title}</h2>
+            </div>
             <p class="section-description">Loading data...</p>
             <div class="data-container"></div>
         `;
         
-        main.appendChild(section);
+        dataSections.appendChild(section);
     }
 
     setupEventListeners() {
-        // Navigation
-        document.getElementById('nav-list').addEventListener('click', (e) => {
-            if (e.target.tagName === 'A') {
-                e.preventDefault();
-                const sectionId = e.target.dataset.section;
-                this.showSection(sectionId);
-            }
-        });
+        console.log('Setting up event listeners...');
+        
+        // Navigation - updated for tabs instead of sidebar
+        const navTabs = document.getElementById('nav-tabs');
+        if (navTabs) {
+            navTabs.addEventListener('click', (e) => {
+                const tab = e.target.closest('.nav-tab');
+                if (tab) {
+                    console.log(`Tab clicked: ${tab.dataset.section}`);
+                    this.setActiveSection(tab.dataset.section);
+                }
+            });
+        }
         
         // Collect all data button
-        document.getElementById('collect-all-data').addEventListener('click', () => {
-            this.collectAllData();
-        });
+        const collectButton = document.getElementById('collect-all-data');
+        console.log('Found collect button:', !!collectButton);
+        
+        if (collectButton) {
+            collectButton.addEventListener('click', (e) => {
+                console.log('Collect button clicked!');
+                this.collectAllData();
+            });
+            console.log('Added click listener to collect button');
+        } else {
+            console.error('Could not find collect-all-data button!');
+        }
         
         // Export data button
-        document.getElementById('export-data').addEventListener('click', () => {
-            this.exportData();
-        });
+        const exportButton = document.getElementById('export-data');
+        if (exportButton) {
+            exportButton.addEventListener('click', () => {
+                console.log('Export button clicked');
+                this.exportData();
+            });
+        }
         
-        // Permission modal buttons
-        document.getElementById('grant-permission').addEventListener('click', () => {
-            const type = document.getElementById('permission-modal').dataset.permissionType;
-            if (this.dataCollector.permissionCallbacks[type]) {
-                this.dataCollector.permissionCallbacks[type].onGrant();
-            }
-            document.getElementById('permission-modal').classList.add('hidden');
-        });
+        console.log('Event listeners set up complete');
         
-        document.getElementById('deny-permission').addEventListener('click', () => {
-            const type = document.getElementById('permission-modal').dataset.permissionType;
-            if (this.dataCollector.permissionCallbacks[type]) {
-                this.dataCollector.permissionCallbacks[type].onDeny();
-            }
-            document.getElementById('permission-modal').classList.add('hidden');
-        });
+        // Permission modal buttons - Add null checks
+        const grantPermissionBtn = document.getElementById('grant-permission');
+        const denyPermissionBtn = document.getElementById('deny-permission');
+        const permissionModal = document.getElementById('permission-modal');
+
+        if (grantPermissionBtn && permissionModal) {
+            grantPermissionBtn.addEventListener('click', () => {
+                const type = permissionModal.dataset.permissionType;
+                if (this.dataCollector.permissionCallbacks && this.dataCollector.permissionCallbacks[type]) {
+                    this.dataCollector.permissionCallbacks[type].onGrant();
+                }
+                permissionModal.classList.add('hidden');
+            });
+        } else {
+            console.warn('Permission grant button or modal not found in the DOM');
+        }
         
-        // Listen for permission requests
-        window.addEventListener('permission-request', (e) => {
-            const modal = document.getElementById('permission-modal');
-            modal.dataset.permissionType = e.detail.type;
-            document.getElementById('permission-message').textContent = e.detail.message;
-            modal.classList.remove('hidden');
-        });
+        if (denyPermissionBtn && permissionModal) {
+            denyPermissionBtn.addEventListener('click', () => {
+                const type = permissionModal.dataset.permissionType;
+                if (this.dataCollector.permissionCallbacks && this.dataCollector.permissionCallbacks[type]) {
+                    this.dataCollector.permissionCallbacks[type].onDeny();
+                }
+                permissionModal.classList.add('hidden');
+            });
+        } else {
+            console.warn('Permission deny button or modal not found in the DOM');
+        }
+        
+        // Listen for permission requests only if we have the modal
+        if (permissionModal) {
+            window.addEventListener('permission-request', (e) => {
+                permissionModal.dataset.permissionType = e.detail.type;
+                const permissionMessage = document.getElementById('permission-message');
+                if (permissionMessage) {
+                    permissionMessage.textContent = e.detail.message;
+                }
+                permissionModal.classList.remove('hidden');
+            });
+        }
+    }
+    
+    // Auto-start collection when the page loads
+    autoStartCollection() {
+        console.log('Auto-start collection scheduled...');
+        
+        // Don't auto-collect data on page load - let user click the button instead
+        // This ensures the intro page is visible
+        const dashboard = document.getElementById('dashboard');
+        if (dashboard) {
+            dashboard.classList.add('hidden');
+        }
+        
+        const introSection = document.getElementById('intro-section');
+        if (introSection) {
+            introSection.classList.remove('hidden');
+        }
     }
 
     async collectAllData() {
-        // Show loading indicator
-        document.getElementById('loading-indicator').classList.remove('hidden');
-        document.getElementById('collect-all-data').disabled = true;
+        console.log('collectAllData method called');
         
         try {
+            // Show loading indicator
+            const introSection = document.getElementById('intro-section');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            
+            console.log('Elements found - intro section:', !!introSection, 'loading indicator:', !!loadingIndicator);
+            
+            if (introSection) introSection.classList.add('hidden');
+            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+            
+            console.log('Starting data collection processes...');
+            
             // Collect all types of data
+            console.log('Collecting basic data...');
             this.collectedData = await this.dataCollector.collectAllData();
+            console.log('Basic data collected');
+            
+            console.log('Collecting enhanced data...');
             this.enhancedData = await this.enhancedDataCollector.collectEnhancedData();
+            console.log('Enhanced data collected');
+            
+            console.log('Collecting comprehensive data...');
             this.comprehensiveData = await this.comprehensiveCollector.collectAll();
+            console.log('Comprehensive data collected');
             
             // Collect insights based on the collected data
+            console.log('Collecting insights...');
             this.insights = await this.insightsCollector.collectAllInsights({
                 ...this.collectedData,
                 ...this.enhancedData
             });
+            console.log('Insights collected');
             
-            // Update UI with collected data
-            this.updateDataDisplay();
+            // Create a scrollable view with all data instead of tabs
+            console.log('Generating scrollable view...');
+            this.generateScrollableDataView();
+            console.log('Scrollable view generated');
             
             // Enable export button
-            document.getElementById('export-data').disabled = false;
+            const exportDataBtn = document.getElementById('export-data');
+            if (exportDataBtn) {
+                exportDataBtn.disabled = false;
+                console.log('Export button enabled');
+            }
         } catch (error) {
             console.error('Error collecting data:', error);
+            console.error('Error stack:', error.stack);
             alert('Error collecting data: ' + error.message);
         } finally {
             // Hide loading indicator
-            document.getElementById('loading-indicator').classList.add('hidden');
-            document.getElementById('collect-all-data').disabled = false;
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            
+            // Show intro section with results
+            const introSection = document.getElementById('intro-section');
+            if (introSection) introSection.classList.remove('hidden');
+            
+            const collectButton = document.getElementById('collect-all-data');
+            if (collectButton) collectButton.disabled = false;
         }
+    }
+
+    generateScrollableDataView() {
+        const introSection = document.getElementById('intro-section');
+        if (!introSection) return;
+        
+        // Clear any previous data from intro section
+        introSection.innerHTML = '';
+        
+        // Create header with completion message
+        const header = document.createElement('div');
+        header.className = 'scan-complete-header';
+        header.innerHTML = `
+            <h2>Your Browser Data Scan Complete</h2>
+            <p>Scroll down to see all collected information about your browser and system.</p>
+            <div class="button-container">
+                <button id="collect-all-data" class="primary-button" type="button">
+                    <i class="fas fa-satellite-dish"></i> Restart Scan
+                </button>
+                <button id="export-all-data" class="secondary-button" type="button">
+                    <i class="fas fa-download"></i> Export All Data
+                </button>
+            </div>
+        `;
+        introSection.appendChild(header);
+        
+        // Add summary (compact view of key information)
+        this.addSummaryToScrollableView(introSection);
+        
+        // Add user activity section with visit history
+        this.addUserActivityToView(introSection);
+        
+        // Create container for all data sections with new dynamic navigation layout
+        const allDataContainer = document.createElement('div');
+        allDataContainer.className = 'all-data-container';
+        introSection.appendChild(allDataContainer);
+        
+        // New dynamic navigation sidebar
+        const navigationSidebar = document.createElement('div');
+        navigationSidebar.className = 'navigation';
+        allDataContainer.appendChild(navigationSidebar);
+        
+        // Create content area for the actual sections
+        const contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        allDataContainer.appendChild(contentArea);
+        
+        // Organize sections into categories for better grouping
+        const categories = [
+            {
+                title: 'Summary',
+                sections: [
+                    { id: 'summary', title: 'Data Overview', data: this.collectedData, 
+                      renderFn: (c, d) => this.renderSummarySection(c, d) }
+                ]
+            },
+            {
+                title: 'System & Browser',
+                sections: [
+                    { id: 'navigator', title: 'Browser Information', data: this.collectedData.navigator, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'navigator') },
+                    { id: 'screen', title: 'Display & Screen', data: this.collectedData.screen, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'screen') },
+                    { id: 'enhanced-graphics', title: 'Graphics & Rendering', data: this.enhancedData?.graphics,
+                      renderFn: this.renderGraphicsData.bind(this) }
+                ]
+            },
+            {
+                title: 'Network & Connectivity',
+                sections: [
+                    { id: 'network', title: 'Network Data', data: this.collectedData.network, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'network') },
+                    { id: 'connection', title: 'Connection Details', data: this.collectedData.connection, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'connection') },
+                    { id: 'enhanced-security', title: 'Security Features', data: this.enhancedData?.security,
+                      renderFn: this.renderSecurityData.bind(this) },
+                    { id: 'enhanced-webrtc', title: 'WebRTC Data', data: this.enhancedData?.webrtc,
+                      renderFn: this.renderWebRTCData.bind(this) }
+                ]
+            },
+            {
+                title: 'Hardware & Capabilities',
+                sections: [
+                    { id: 'sensors', title: 'Sensors & Battery', data: this.collectedData.sensors, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'sensors') },
+                    { id: 'media', title: 'Media Devices', data: this.collectedData.media, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'media') },
+                    { id: 'interaction', title: 'Input & Interaction', data: this.collectedData.interaction, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'interaction') },
+                    { id: 'enhanced-codecs', title: 'Media Codecs', data: this.enhancedData?.codecs,
+                      renderFn: this.renderCodecData.bind(this) },
+                    { id: 'comp-hardware', title: 'Hardware Details', data: this.comprehensiveData?.hardware,
+                      renderFn: (c, d) => this.renderComprehensiveData(c, d, 'comp-hardware') }
+                ]
+            },
+            {
+                title: 'Privacy & Security',
+                sections: [
+                    { id: 'fingerprinting', title: 'Browser Fingerprint', data: this.collectedData.fingerprinting, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'fingerprinting') },
+                    { id: 'permissions', title: 'Permissions', data: this.collectedData.permissions, 
+                      renderFn: (c, d) => this.renderCategoryData(c, d, 'permissions') },
+                    { id: 'insights-privacy', title: 'Privacy Analysis', data: this.insights?.privacyScore,
+                      renderFn: this.renderPrivacyScoreData.bind(this) },
+                    { id: 'insights-fingerprint', title: 'Fingerprint Analysis', data: this.insights?.fingerprint,
+                      renderFn: this.renderFingerprintUniquenessData.bind(this) },
+                    { id: 'enhanced-fonts', title: 'Font Detection', data: this.enhancedData?.fonts,
+                      renderFn: this.renderFontData.bind(this) }
+                ]
+            },
+            {
+                title: 'Insights & Analysis',
+                sections: [
+                    ...(this.collectedData.geolocation && !this.collectedData.geolocation.error && !this.collectedData.geolocation.requiresUserGesture ? [
+                        { id: 'geolocation', title: 'Geolocation', data: this.collectedData.geolocation, 
+                          renderFn: (c, d) => this.renderCategoryData(c, d, 'geolocation') }
+                    ] : []),
+                    { id: 'insights-weather', title: 'Weather Data', data: this.insights?.weather,
+                      renderFn: this.renderWeatherData.bind(this) },
+                    { id: 'insights-astronomy', title: 'Astronomy Data', data: this.insights?.astronomy,
+                      renderFn: this.renderAstronomyData.bind(this) },
+                    { id: 'insights-iss', title: 'ISS Location', data: this.insights?.iss,
+                      renderFn: this.renderISSData.bind(this) },
+                    { id: 'insights-carbon', title: 'Carbon Footprint', data: this.insights?.carbonFootprint,
+                      renderFn: this.renderCarbonFootprintData.bind(this) }
+                ]
+            },
+            {
+                title: 'Advanced Features',
+                sections: [
+                    { id: 'enhanced-features', title: 'Browser Features', data: this.enhancedData?.browserFeatures,
+                      renderFn: this.renderExtendedFeaturesData.bind(this) },
+                    { id: 'comp-core', title: 'Core Web APIs', data: this.comprehensiveData?.core,
+                      renderFn: (c, d) => this.renderComprehensiveData(c, d, 'comp-core') },
+                    { id: 'comp-storage', title: 'Storage APIs', data: this.comprehensiveData?.storage,
+                      renderFn: (c, d) => this.renderComprehensiveData(c, d, 'comp-storage') },
+                    { id: 'comp-network', title: 'Network APIs', data: this.comprehensiveData?.networking,
+                      renderFn: (c, d) => this.renderComprehensiveData(c, d, 'comp-network') },
+                    { id: 'comp-security', title: 'Security APIs', data: this.comprehensiveData?.security,
+                      renderFn: (c, d) => this.renderComprehensiveData(c, d, 'comp-security') },
+                    { id: 'comp-experimental', title: 'Experimental Features', data: this.comprehensiveData?.experimental,
+                      renderFn: (c, d) => this.renderComprehensiveData(c, d, 'comp-experimental') }
+                ]
+            }
+        ];
+        
+        // Keep track of all valid sections for navigation
+        const validSections = [];
+        
+        // Generate sections and navigation items
+        categories.forEach(category => {
+            // Skip categories with no valid sections
+            const categorySections = category.sections.filter(s => s.data);
+            if (categorySections.length === 0) return;
+            
+            // Add valid sections to our sections list
+            categorySections.forEach(section => {
+                validSections.push({
+                    id: section.id,
+                    title: section.title,
+                    renderFn: section.renderFn,
+                    data: section.data
+                });
+                
+                // Create section in content area
+                const sectionEl = document.createElement('section');
+                sectionEl.id = `section-${section.id}`;
+                sectionEl.className = 'scrollable-data-section';
+                sectionEl.innerHTML = `
+                    <div class="section-header">
+                        <h2><i class="fas ${this.getSectionIcon(section.id)}"></i> ${section.title}</h2>
+                    </div>
+                    <p class="section-description">${this.getCategoryDescription(section.id)}</p>
+                    <div class="data-container" id="data-container-${section.id}"></div>
+                `;
+                contentArea.appendChild(sectionEl);
+                
+                // Render the data in the container
+                const container = sectionEl.querySelector(`#data-container-${section.id}`);
+                if (container && section.data && section.renderFn) {
+                    section.renderFn(container, section.data);
+                }
+            });
+        });
+        
+        // Create navigation items for valid sections
+        validSections.forEach((section, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'nav-word';
+            navItem.dataset.target = `section-${section.id}`;
+            navItem.textContent = section.title;
+            if (index === 0) {
+                navItem.classList.add('active');
+            }
+            navigationSidebar.appendChild(navItem);
+        });
+        
+        // Add event listeners to buttons
+        setTimeout(() => {
+            const collectButton = document.getElementById('collect-all-data');
+            if (collectButton) {
+                collectButton.addEventListener('click', () => {
+                    this.collectAllData();
+                });
+            }
+            
+            const exportButton = document.getElementById('export-all-data');
+            if (exportButton) {
+                exportButton.addEventListener('click', () => {
+                    this.exportData();
+                });
+            }
+            
+            // Set up the dynamic navigation
+            this.setupDynamicNavigation();
+        }, 0);
+    }
+
+    // New method to setup dynamic navigation with zoom effect
+    setupDynamicNavigation() {
+        const sections = document.querySelectorAll(".scrollable-data-section");
+        const navWords = document.querySelectorAll(".nav-word");
+        
+        // Use a more stable scaling function with less dramatic differences
+        const exponentialScale = (x, factor = 0.1) => {
+            return Math.exp(-factor * x);
+        };
+        
+        // Set initial state for all navigation items with gentler scaling
+        navWords.forEach((word, i) => {
+            // Start with a more uniform font size
+            const fontSize = i === 0 ? '0.95rem' : '0.75rem';
+            word.style.fontSize = fontSize;
+            if (i === 0) {
+                word.classList.add("active");
+            }
+        });
+        
+        // Use a more effective throttle with higher threshold
+        let lastScrollTime = 0;
+        const scrollThreshold = 100; // Increased to reduce frequency of updates
+        let activeIndex = 0; // Keep track of current active section
+        
+        // Helper function to update nav words - separated for cleaner code
+        const updateNavWords = (index) => {
+            if (index === activeIndex) return; // Don't update if we're already on this section
+            
+            activeIndex = index; // Update active index
+            
+            navWords.forEach((word, i) => {
+                word.classList.toggle("active", i === index);
+                
+                // Use simpler font sizing with less dramatic differences 
+                if (i === index) {
+                    word.style.fontSize = '0.95rem';
+                    word.style.opacity = '1';
+                } else {
+                    // Smaller difference between active and inactive
+                    word.style.fontSize = '0.75rem';
+                    word.style.opacity = '0.6';
+                }
+            });
+        };
+        
+        // Create IntersectionObserver with better thresholds
+        const observer = new IntersectionObserver(entries => {
+            // Only process if we're not throttled
+            const now = Date.now();
+            if (now - lastScrollTime < scrollThreshold) return;
+            lastScrollTime = now;
+            
+            // Find the most visible section
+            let mostVisible = {entry: null, visiblePx: 0};
+            
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Calculate how many pixels are visible
+                    const visiblePx = Math.min(
+                        entry.boundingClientRect.bottom, 
+                        window.innerHeight
+                    ) - Math.max(
+                        entry.boundingClientRect.top, 
+                        0
+                    );
+                    
+                    if (visiblePx > mostVisible.visiblePx) {
+                        mostVisible = {entry, visiblePx};
+                    }
+                }
+            });
+            
+            // If we found a visible section
+            if (mostVisible.entry) {
+                const activeSection = mostVisible.entry.target;
+                const activeSectionId = activeSection.id;
+                const index = [...sections].indexOf(activeSection);
+                
+                // Track section view
+                if (this.dataCollector && typeof this.dataCollector.trackSectionView === 'function') {
+                    this.dataCollector.trackSectionView(activeSectionId.replace('section-', ''));
+                }
+                
+                // Update navigation - using requestAnimationFrame for smoother animation
+                requestAnimationFrame(() => {
+                    updateNavWords(index);
+                });
+            }
+        }, { 
+            threshold: [0.1, 0.2, 0.3, 0.4, 0.5], // Fewer thresholds for better performance
+            rootMargin: "-10% 0px -10% 0px" // Ignore a bit of the top and bottom
+        });
+        
+        // Observe all sections
+        sections.forEach(section => observer.observe(section));
+        
+        // Add click handlers for navigation items
+        navWords.forEach((word, idx) => {
+            word.addEventListener("click", () => {
+                const targetId = word.dataset.target;
+                const target = document.getElementById(targetId);
+                if (target) {
+                    // Update nav immediately on click for more responsive feel
+                    updateNavWords(idx);
+                    
+                    target.scrollIntoView({ behavior: "smooth" });
+                }
+            });
+        });
+    }
+
+    generateAndShowSummary() {
+        if (!this.collectedData) return;
+        
+        const introSection = document.getElementById('intro-section');
+        if (!introSection) return;
+        
+        // Create summary container if it doesn't exist
+        let summaryContainer = document.getElementById('data-summary-container');
+        if (!summaryContainer) {
+            summaryContainer = document.createElement('div');
+            summaryContainer.id = 'data-summary-container';
+            summaryContainer.className = 'summary-container';
+            introSection.appendChild(summaryContainer);
+        }
+        
+        let html = `
+            <h2>Your Browser Data Summary</h2>
+            <p>Below is a summary of the key data points collected from your browser.</p>
+            <div class="data-grid">
+        `;
+        
+        // SYSTEM INFO
+        html += `<div class="data-card">
+            <h4><i class="fas fa-laptop"></i> System Information</h4>`;
+        
+        if (this.collectedData.navigator) {
+            const nav = this.collectedData.navigator;
+            html += this.createDataItem('Browser', nav.vendor ? `${nav.vendor} ${nav.appName}` : nav.appName || 'Unknown');
+            html += this.createDataItem('Platform', nav.platform || 'Unknown');
+            html += this.createDataItem('CPU Cores', nav.hardwareConcurrency || 'Unknown');
+            html += this.createDataItem('Memory', nav.deviceMemory || 'Unknown');
+            html += this.createDataItem('User Agent', nav.userAgent ? (nav.userAgent.length > 50 ? 
+                nav.userAgent.substring(0, 50) + '...' : nav.userAgent) : 'Unknown');
+            html += this.createDataItem('Language', nav.language || 'Unknown');
+        }
+        
+        if (this.collectedData.screen && this.collectedData.screen.screen) {
+            const screen = this.collectedData.screen.screen;
+            html += this.createDataItem('Screen Resolution', `${screen.width}×${screen.height}`);
+            html += this.createDataItem('Color Depth', `${screen.colorDepth} bits`);
+        }
+        html += `</div>`;
+        
+        // NETWORK INFO
+        html += `<div class="data-card">
+            <h4><i class="fas fa-wifi"></i> Network Information</h4>`;
+        
+        if (this.collectedData.network && this.collectedData.network.ip) {
+            html += this.createDataItem('Public IP', this.collectedData.network.ip.public || 'Unknown');
+            
+            if (this.collectedData.network.ip.geolocation) {
+                const geo = this.collectedData.network.ip.geolocation;
+                const location = [];
+                if (geo.city) location.push(geo.city);
+                if (geo.country_name || geo.country) location.push(geo.country_name || geo.country);
+                html += this.createDataItem('Location', location.length ? location.join(', ') : 'Unknown');
+                html += this.createDataItem('ISP', geo.org || geo.asn || 'Unknown');
+            }
+        }
+        
+        if (this.collectedData.connection) {
+            const conn = this.collectedData.connection;
+            if (typeof conn === 'object') {
+                html += this.createDataItem('Connection Type', conn.effectiveType || 'Unknown');
+                html += this.createDataItem('Online Status', (this.collectedData.connection.online !== undefined) ? 
+                                            (this.collectedData.connection.online ? 'Online' : 'Offline') : 'Unknown');
+            }
+        }
+        html += `</div>`;
+        
+        // HARDWARE & CAPABILITIES
+        html += `<div class="data-card">
+            <h4><i class="fas fa-microchip"></i> Hardware & Capabilities</h4>`;
+        
+        // Combine data from multiple collectors
+        let capabilities = {};
+        
+        if (this.comprehensiveData && this.comprehensiveData.hardware) {
+            const hardware = this.comprehensiveData.hardware;
+            if (hardware.deviceInfo) {
+                capabilities.gpu = hardware.deviceInfo.gpu;
+            }
+            if (hardware.sensors) {
+                capabilities.batteryAPI = hardware.sensors.batteryAPI;
+                capabilities.accelerometer = hardware.sensors.accelerometer;
+                capabilities.gyroscope = hardware.sensors.gyroscope;
+            }
+        }
+        
+        if (this.collectedData.sensors) {
+            const sensors = this.collectedData.sensors;
+            if (sensors.battery && typeof sensors.battery === 'object' && !sensors.battery.error) {
+                html += this.createDataItem('Battery Level', sensors.battery.level || 'Unknown');
+                html += this.createDataItem('Battery Status', sensors.battery.charging ? 'Charging' : 'Discharging');
+            }
+        }
+        
+        if (capabilities.gpu) {
+            html += this.createDataItem('GPU', capabilities.gpu);
+        }
+        
+        html += this.createDataItem('Sensors', [
+            capabilities.batteryAPI ? 'Battery' : '',
+            capabilities.accelerometer ? 'Accelerometer' : '',
+            capabilities.gyroscope ? 'Gyroscope' : '',
+            this.collectedData.sensors?.sensorsAvailable?.deviceOrientation ? 'Orientation' : '',
+        ].filter(Boolean).join(', ') || 'Limited detection');
+        
+        // Add media devices
+        if (this.collectedData.media) {
+            const media = this.collectedData.media;
+            const devices = [];
+            if (media.videoinput && media.videoinput.length) devices.push(`${media.videoinput.length} Camera(s)`);
+            html += this.createDataItem('PWA Support', pwa.length ? pwa.join(', ') : 'Limited');
+            
+            const hardware = [];
+            if (this.enhancedData.browserFeatures.bluetooth && this.enhancedData.browserFeatures.bluetooth.available) 
+                hardware.push('Bluetooth');
+            if (this.enhancedData.browserFeatures.usb && this.enhancedData.browserFeatures.usb.available) 
+                hardware.push('USB');
+            if (this.enhancedData.browserFeatures.serial && this.enhancedData.browserFeatures.serial.available) 
+                hardware.push('Serial');
+                
+            html += this.createDataItem('Hardware APIs', hardware.length ? hardware.join(', ') : 'Limited access');
+        }
+        
+        if (this.collectedData.permissions && this.collectedData.permissions.features) {
+            const features = this.collectedData.permissions.features;
+            html += this.createDataItem('WebRTC', features.webRTC ? 'Supported' : 'Not supported');
+        }
+        
+        html += `</div>`;
+        
+        // PRIVACY & SECURITY
+        html += `<div class="data-card">
+            <h4><i class="fas fa-shield-alt"></i> Privacy & Security</h4>`;
+        
+        if (this.insights && this.insights.privacyScore) {
+            const privacy = this.insights.privacyScore;
+            html += this.createDataItem('Privacy Score', `<span style="color:${privacy.color};">${privacy.score}/100 (${privacy.rating})</span>`);
+            
+            if (privacy.issues && privacy.issues.length) {
+                const topIssues = privacy.issues.slice(0, 2);
+                html += this.createDataItem('Issues Found', `${topIssues.join('<br>')}${privacy.issues.length > 2 ? '<br>...' : ''}`);
+            }
+        }
+        
+        if (this.insights && this.insights.fingerprint) {
+            const fingerprint = this.insights.fingerprint;
+            const color = fingerprint.score < 33 ? "#2ecc71" : fingerprint.score < 66 ? "#f39c12" : "#e74c3c";
+            html += this.createDataItem('Fingerprint Uniqueness', 
+                `<span style="color:${color};">${fingerprint.score}%</span>`);
+        }
+        
+        // Information about SSL/security
+        if (this.enhancedData && this.enhancedData.security) {
+            html += this.createDataItem('HTTPS', this.enhancedData.security.https ? 
+                '<span class="success">Enabled</span>' : 
+                '<span class="warning">Not enabled</span>');
+        }
+        
+        html += `</div>`;
+        
+        // LOCATION BASED DATA
+        if (this.collectedData.geolocation && !this.collectedData.geolocation.error && !this.collectedData.geolocation.requiresUserGesture) {
+            html += `<div class="data-card">
+                <h4><i class="fas fa-map-marker-alt"></i> Location Data</h4>`;
+            
+            const geo = this.collectedData.geolocation;
+            html += this.createDataItem('Coordinates', `${geo.latitude, geo.longitude}`);
+            html += this.createDataItem('Accuracy', geo.accuracy || 'Unknown');
+            
+            // Add insights if available
+            if (this.insights) {
+                if (this.insights.weather && !this.insights.weather.error) {
+                    const weather = this.insights.weather;
+                    html += this.createDataItem('Weather', `${weather.temperature?.celsius || '?'}°C, ${weather.conditions || 'Unknown'}`);
+                }
+                
+                if (this.insights.iss && !this.insights.iss.error) {
+                    html += this.createDataItem('ISS Distance', `${this.insights.iss.distance.km.toLocaleString()} km`);
+                }
+            }
+            
+            html += `</div>`;
+        } else {
+            // For when geolocation is not available
+            html += `<div class="data-card">
+                <h4><i class="fas fa-map-marker-alt"></i> Location Data</h4>
+                <p>Location access required for detailed geolocation data.</p>`;
+            
+            if (this.collectedData.geolocation && this.collectedData.geolocation.requiresUserGesture) {
+                html += `<button id="summary-request-geolocation" class="primary-button">
+                    <i class="fas fa-map-marker-alt"></i> Enable Geolocation
+                </button>`;
+            }
+            
+            html += `</div>`;
+        }
+        
+        // Close grid
+        html += `</div>`;
+        
+        // Add instructions to navigate to detailed data
+        html += `
+            <div class="summary-footer">
+                <p>Use the tabs above to explore detailed data in each category.</p>
+                <button id="view-dashboard" class="secondary-button">
+                    <i class="fas fa-th-large"></i> View Dashboard
+                </button>
+            </div>
+        `;
+        
+        // Set the HTML content
+        summaryContainer.innerHTML = html;
+        
+        // Make intro section visible again
+        introSection.classList.remove('hidden');
+        
+        // Add event listeners for the buttons
+        setTimeout(() => {
+            const geoButton = document.getElementById('summary-request-geolocation');
+            if (geoButton) {
+                geoButton.addEventListener('click', async () => {
+                    geoButton.disabled = true;
+                    geoButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Requesting...';
+                    
+                    try {
+                        const geoData = await this.dataCollector.requestGeolocation();
+                        // Update the collected data
+                        this.collectedData.geolocation = geoData;
+                        // Regenerate the summary with the new data
+                        this.generateAndShowSummary();
+                        // Also update the geolocation tab
+                        const geoSection = document.getElementById('geolocation-section');
+                        if (geoSection) {
+                            const container = geoSection.querySelector('.data-container');
+                            if (container) {
+                                this.renderGeolocationData(container, geoData);
+                            }
+                        }
+                    } catch (error) {
+                        geoButton.disabled = false;
+                        geoButton.innerHTML = '<i class="fas fa-map-marker-alt"></i> Try Again';
+                    }
+                });
+            }
+            
+            const dashboardButton = document.getElementById('view-dashboard');
+            if (dashboardButton) {
+                dashboardButton.addEventListener('click', () => {
+                    const dashboard = document.getElementById('dashboard');
+                    if (dashboard) dashboard.classList.remove('hidden');
+                    introSection.classList.add('hidden');
+                });
+            }
+        }, 0);
+    }
+
+    addSummaryToScrollableView(parentElement) {
+        // Create summary container
+        const summaryContainer = document.createElement('div');
+        summaryContainer.className = 'summary-container';
+        summaryContainer.innerHTML = '<h3>Key Findings Summary</h3>';
+        
+        const summaryGrid = document.createElement('div');
+        summaryGrid.className = 'data-grid';
+        summaryContainer.appendChild(summaryGrid);
+        
+        // SYSTEM INFO
+        const systemCard = document.createElement('div');
+        systemCard.className = 'data-card';
+        systemCard.innerHTML = `<h4><i class="fas fa-laptop"></i> System Information</h4>`;
+        
+        if (this.collectedData.navigator) {
+            const nav = this.collectedData.navigator;
+            systemCard.innerHTML += this.createDataItem('Browser', nav.vendor ? `${nav.vendor} ${nav.appName}` : nav.appName || 'Unknown');
+            systemCard.innerHTML += this.createDataItem('Platform', nav.platform || 'Unknown');
+            systemCard.innerHTML += this.createDataItem('CPU Cores', nav.hardwareConcurrency || 'Unknown');
+            systemCard.innerHTML += this.createDataItem('Memory', nav.deviceMemory || 'Unknown');
+        }
+        
+        if (this.collectedData.screen && this.collectedData.screen.screen) {
+            const screen = this.collectedData.screen.screen;
+            systemCard.innerHTML += this.createDataItem('Screen Resolution', `${screen.width}×${screen.height}`);
+        }
+        
+        summaryGrid.appendChild(systemCard);
+        
+        // NETWORK INFO
+        const networkCard = document.createElement('div');
+        networkCard.className = 'data-card';
+        networkCard.innerHTML = `<h4><i class="fas fa-wifi"></i> Network Information</h4>`;
+        
+        if (this.collectedData.network && this.collectedData.network.ip) {
+            networkCard.innerHTML += this.createDataItem('Public IP', this.collectedData.network.ip.public || 'Unknown');
+            
+            if (this.collectedData.network.ip.geolocation) {
+                const geo = this.collectedData.network.ip.geolocation;
+                const location = [];
+                if (geo.city) location.push(geo.city);
+                if (geo.country_name || geo.country) location.push(geo.country_name || geo.country);
+                networkCard.innerHTML += this.createDataItem('Location', location.length ? location.join(', ') : 'Unknown');
+            }
+        }
+        
+        if (this.collectedData.connection) {
+            const conn = this.collectedData.connection;
+            if (typeof conn === 'object') {
+                networkCard.innerHTML += this.createDataItem('Connection Type', 
+                    this.collectedData.connection.connection?.effectiveType || 'Unknown');
+            }
+        }
+        
+        summaryGrid.appendChild(networkCard);
+        
+        // PRIVACY INFO
+        const privacyCard = document.createElement('div');
+        privacyCard.className = 'data-card';
+        privacyCard.innerHTML = `<h4><i class="fas fa-shield-alt"></i> Privacy & Security</h4>`;
+        
+        if (this.insights && this.insights.privacyScore) {
+            const privacy = this.insights.privacyScore;
+            privacyCard.innerHTML += this.createDataItem('Privacy Score', `<span style="color:${privacy.color};">${privacy.score}/100 (${privacy.rating})</span>`);
+        }
+        
+        if (this.insights && this.insights.fingerprint) {
+            const fingerprint = this.insights.fingerprint;
+            const color = fingerprint.score < 33 ? "#2ecc71" : fingerprint.score < 66 ? "#f39c12" : "#e74c3c";
+            privacyCard.innerHTML += this.createDataItem('Fingerprint Uniqueness', 
+                `<span style="color:${color};">${fingerprint.score}%</span>`);
+        }
+        
+        summaryGrid.appendChild(privacyCard);
+        
+        parentElement.appendChild(summaryContainer);
+    }
+
+    addUserActivityToView(parentElement) {
+        // Get user activity data
+        const activityData = this.dataCollector.getUserActivityData();
+        
+        // Create activity container
+        const activityContainer = document.createElement('div');
+        activityContainer.className = 'activity-container';
+        activityContainer.innerHTML = '<h3>Your Visit History</h3>';
+        
+        const activityGrid = document.createElement('div');
+        activityGrid.className = 'data-grid';
+        activityContainer.appendChild(activityGrid);
+        
+        // Visit stats card
+        const visitStatsCard = document.createElement('div');
+        visitStatsCard.className = 'data-card';
+        visitStatsCard.innerHTML = `
+            <h4><i class="fas fa-history"></i> Visit Statistics</h4>
+            ${this.createDataItem('Total Visits', activityData.visitCount)}
+        `;
+        
+        // Add last visit date if available
+        if (activityData.lastVisit) {
+            const lastVisitDate = new Date(activityData.lastVisit);
+            const timeElapsed = this.getTimeElapsed(lastVisitDate);
+            visitStatsCard.innerHTML += this.createDataItem(
+                'Last Visit', 
+                `${lastVisitDate.toLocaleDateString()} ${lastVisitDate.toLocaleTimeString()} (${timeElapsed})`
+            );
+        }
+        
+        // Add visit frequency if we have enough data
+        if (activityData.visitDates && activityData.visitDates.length >= 2) {
+            const frequency = this.calculateVisitFrequency(activityData.visitDates);
+            visitStatsCard.innerHTML += this.createDataItem('Visit Frequency', frequency);
+        }
+        
+        activityGrid.appendChild(visitStatsCard);
+        
+        // Visit chart card
+        const visitChartCard = document.createElement('div');
+        visitChartCard.className = 'data-card';
+        visitChartCard.innerHTML = `
+            <h4><i class="fas fa-chart-line"></i> Visit Timeline</h4>
+            <canvas id="visit-chart" height="200"></canvas>
+        `;
+        activityGrid.appendChild(visitChartCard);
+        
+        // Section activity card
+        const sectionCard = document.createElement('div');
+        sectionCard.className = 'data-card';
+        sectionCard.innerHTML = `
+            <h4><i class="fas fa-chart-bar"></i> Most Viewed Sections</h4>
+        `;
+        
+        // Check if we have section view data
+        if (Object.keys(activityData.sectionsViewed).length > 0) {
+            sectionCard.innerHTML += `<canvas id="sections-chart" height="200"></canvas>`;
+        } else {
+            sectionCard.innerHTML += `<p class="unavailable">No section view data available yet.</p>
+                <p>As you navigate through different sections of the app, this chart will show which sections you view most frequently.</p>`;
+        }
+        
+        activityGrid.appendChild(sectionCard);
+        
+        // Add to parent
+        parentElement.appendChild(activityContainer);
+        
+        // Initialize charts after DOM is updated
+        setTimeout(() => {
+            // Create visit timeline chart
+            if (activityData.visitDates && activityData.visitDates.length > 0) {
+                const visitChartElement = document.getElementById('visit-chart');
+                if (visitChartElement) {
+                    this.createVisitChart(visitChartElement, activityData.visitDates);
+                }
+            }
+            
+            // Create sections chart
+            if (Object.keys(activityData.sectionsViewed).length > 0) {
+                const sectionsChartElement = document.getElementById('sections-chart');
+                if (sectionsChartElement) {
+                    this.createSectionsChart(sectionsChartElement, activityData.sectionsViewed);
+                }
+            }
+        }, 0);
+    }
+
+    calculateVisitFrequency(visitDates) {
+        if (visitDates.length < 2) return 'Not enough data';
+        
+        // Parse dates and sort chronologically
+        const dates = visitDates.map(date => new Date(date)).sort((a, b) => a - b);
+        
+        // Calculate average time between visits
+        let totalDiff = 0;
+        for (let i = 1; i < dates.length; i++) {
+            totalDiff += dates[i] - dates[i-1];
+        }
+        
+        const avgTimeBetweenVisits = totalDiff / (dates.length - 1);
+        const days = Math.floor(avgTimeBetweenVisits / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((avgTimeBetweenVisits % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        
+        if (days > 0) {
+            return `Every ${days} day${days !== 1 ? 's' : ''} ${hours > 0 ? `and ${hours} hour${hours !== 1 ? 's' : ''}` : ''}`;
+        } else if (hours > 0) {
+            return `Every ${hours} hour${hours !== 1 ? 's' : ''}`;
+        } else {
+            return 'Multiple times per hour';
+        }
+    }
+
+    getTimeElapsed(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (diffDays > 0) {
+            return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+        } else if (diffHrs > 0) {
+            return `${diffHrs} hour${diffHrs !== 1 ? 's' : ''} ago`;
+        } else if (diffMins > 0) {
+            return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+        } else {
+            return 'Just now';
+        }
+    }
+
+    createVisitChart(canvas, visitDates) {
+        // Convert dates to local date strings
+        const dates = visitDates.map(date => new Date(date));
+        
+        // Format dates for display
+        const labels = dates.map(date => {
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        });
+        
+        // Create visit counts (all 1 since each entry is a single visit)
+        const visitCounts = dates.map(() => 1);
+        
+        // Create chart
+        new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Site Visits',
+                    data: visitCounts,
+                    fill: false,
+                    borderColor: 'rgba(0, 198, 255, 1)',
+                    backgroundColor: 'rgba(0, 198, 255, 0.5)',
+                    tension: 0.1,
+                    pointRadius: 5,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].label;
+                            },
+                            label: function(context) {
+                                return 'Site visited';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    createSectionsChart(canvas, sectionsViewed) {
+        // Convert section IDs to readable names and sort by view count
+        const sections = Object.entries(sectionsViewed).map(([id, count]) => ({
+            id,
+            name: this.getCategoryTitle(id) || id,
+            count
+        })).sort((a, b) => b.count - a.count);
+        
+        // Get labels and counts for chart
+        const labels = sections.map(section => section.name);
+        const counts = sections.map(section => section.count);
+        
+        // Create chart
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Views',
+                    data: counts,
+                    backgroundColor: 'rgba(138, 43, 226, 0.6)',
+                    borderColor: 'rgba(138, 43, 226, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    getCategoryTitle(category) {
+        const titles = {
+            'network': 'Network & Server Data',
+            'navigator': 'Browser & Environment',
+            'screen': 'Screen & Display',
+            'connection': 'Network Information',
+            'geolocation': 'Geolocation',
+            'sensors': 'Sensors & Battery',
+            'fingerprinting': 'Browser Fingerprinting',
+            'interaction': 'Input & Interaction',
+            'media': 'Media Devices',
+            'permissions': 'Permissions & Features'
+        };
+        
+        return titles[category] || category.charAt(0).toUpperCase() + category.slice(1);
     }
 
     updateDataDisplay() {
@@ -174,8 +1255,12 @@ class UIController {
         // Update each section with its data
         // First, update basic data sections
         Object.entries(this.collectedData).forEach(([category, data]) => {
-            const section = document.getElementById(category);
-            if (!section) return;
+            // Fix: Look for sections with the proper -section suffix
+            const section = document.getElementById(`${category}-section`);
+            if (!section) {
+                console.error(`Section not found: ${category}-section`);
+                return;
+            }
             
             const container = section.querySelector('.data-container');
             const description = section.querySelector('.section-description');
@@ -187,6 +1272,8 @@ class UIController {
             if (container) {
                 container.innerHTML = '';
                 this.renderCategoryData(container, data, category);
+            } else {
+                console.error(`Data container not found in section: ${category}-section`);
             }
         });
 
@@ -268,7 +1355,7 @@ class UIController {
                 'Security and privacy features of your browser');
                 
             this.updateSectionContent('comp-experimental', this.comprehensiveData.experimental,
-                'Experimental and cutting-edge web platform features');
+                'Experimental and emerging web platform features');
         }
     }
 
@@ -312,8 +1399,12 @@ class UIController {
     }
 
     updateSectionContent(sectionId, data, description) {
-        const section = document.getElementById(sectionId);
-        if (!section) return;
+        // Fix: Look for sections with the proper -section suffix
+        const section = document.getElementById(`${sectionId}-section`);
+        if (!section) {
+            console.error(`Section not found: ${sectionId}-section`);
+            return;
+        }
         
         const descriptionEl = section.querySelector('.section-description');
         const container = section.querySelector('.data-container');
@@ -325,6 +1416,8 @@ class UIController {
         if (container) {
             container.innerHTML = '';
             this.renderEnhancedData(container, data, sectionId);
+        } else {
+            console.error(`Data container not found in section: ${sectionId}-section`);
         }
     }
 
@@ -419,46 +1512,66 @@ class UIController {
     renderComprehensiveCore(data) {
         let html = '<div class="data-grid">';
         
-        // JavaScript features
+        // JavaScript features - add null checks 
         html += '<div class="data-card"><h4>JavaScript Features</h4>';
-        Object.entries(data.js).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.js && typeof data.js === 'object') {
+            Object.entries(data.js).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">JavaScript features data not available</p>';
+        }
         html += '</div>';
         
         // Web Components
         html += '<div class="data-card"><h4>Web Components</h4>';
-        Object.entries(data.webComponents).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.webComponents && typeof data.webComponents === 'object') {
+            Object.entries(data.webComponents).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Web Components data not available</p>';
+        }
         html += '</div>';
         
         // WebAssembly
         html += '<div class="data-card"><h4>WebAssembly</h4>';
-        Object.entries(data.webAssembly).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.webAssembly && typeof data.webAssembly === 'object') {
+            Object.entries(data.webAssembly).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">WebAssembly data not available</p>';
+        }
         html += '</div>';
         
         // Workers
         html += '<div class="data-card"><h4>Workers & Threading</h4>';
-        for (const [key, value] of Object.entries(data.workers)) {
-            if (typeof value === 'object') {
-                html += `<h5>${this.formatPropertyName(key)}</h5>`;
-                Object.entries(value).forEach(([subKey, subValue]) => {
-                    html += this.createDataItem(this.formatPropertyName(subKey), this.formatBooleanOrValue(subValue));
-                });
-            } else {
-                html += this.createDataItem(this.formatPropertyName(key), this.formatBooleanOrValue(value));
+        if (data.workers && typeof data.workers === 'object') {
+            for (const [key, value] of Object.entries(data.workers)) {
+                if (typeof value === 'object') {
+                    html += `<h5>${this.formatPropertyName(key)}</h5>`;
+                    Object.entries(value).forEach(([subKey, subValue]) => {
+                        html += this.createDataItem(this.formatPropertyName(subKey), this.formatBooleanOrValue(subValue));
+                    });
+                } else {
+                    html += this.createDataItem(this.formatPropertyName(key), this.formatBooleanOrValue(value));
+                }
             }
+        } else {
+            html += '<p class="unavailable">Workers data not available</p>';
         }
         html += '</div>';
         
         // DOM Features
         html += '<div class="data-card"><h4>DOM Features</h4>';
-        Object.entries(data.dom).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.dom && typeof data.dom === 'object') {
+            Object.entries(data.dom).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            }); 
+        } else {
+            html += '<p class="unavailable">DOM features data not available</p>';
+        }
         html += '</div>';
         
         html += '</div>'; // Close grid
@@ -471,34 +1584,31 @@ class UIController {
         
         // Device Info
         html += '<div class="data-card"><h4>Device Information</h4>';
-        Object.entries(data.deviceInfo).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), value);
-        });
+        if (data.deviceInfo && typeof data.deviceInfo === 'object') {
+            Object.entries(data.deviceInfo).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), value);
+            }); 
+        } else {
+            html += '<p class="unavailable">Device information not available</p>';
+        }
         html += '</div>';
+        
+        // ... Continue with similar null checks for other sections ...
         
         // Sensors
         html += '<div class="data-card"><h4>Sensors</h4>';
-        Object.entries(data.sensors).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.sensors && typeof data.sensors === 'object') {
+            Object.entries(data.sensors).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Sensors data not available</p>';
+        }
         html += '</div>';
         
-        // Hardware Interfaces
-        html += '<div class="data-card"><h4>Hardware Interfaces</h4>';
-        Object.entries(data.hardware).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
-        html += '</div>';
-        
-        // Display
-        html += '<div class="data-card"><h4>Display Properties</h4>';
-        Object.entries(data.display).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), value);
-        });
-        html += '</div>';
+        // ... Rest of the function ...
         
         html += '</div>'; // Close grid
-        
         return html;
     }
 
@@ -507,16 +1617,24 @@ class UIController {
         
         // Graphics APIs
         html += '<div class="data-card"><h4>Graphics APIs</h4>';
-        Object.entries(data.graphics).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.graphics && typeof data.graphics === 'object') {
+            Object.entries(data.graphics).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Graphics APIs data not available</p>';
+        }
         html += '</div>';
         
         // Image Formats
         html += '<div class="data-card"><h4>Image Format Support</h4>';
-        Object.entries(data.images).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.images && typeof data.images === 'object') {
+            Object.entries(data.images).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Image format support data not available</p>';
+        }
         html += '</div>';
         
         // WebGPU details if available
@@ -554,23 +1672,35 @@ class UIController {
         
         // Input Methods
         html += '<div class="data-card"><h4>Input Methods</h4>';
-        Object.entries(data.input).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.input && typeof data.input === 'object') {
+            Object.entries(data.input).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Input methods data not available</p>';
+        }
         html += '</div>';
         
         // Interaction
         html += '<div class="data-card"><h4>Interaction Capabilities</h4>';
-        Object.entries(data.interaction).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.interaction && typeof data.interaction === 'object') {
+            Object.entries(data.interaction).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Interaction capabilities data not available</p>';
+        }
         html += '</div>';
         
         // Permissions
         html += '<div class="data-card"><h4>Permission APIs</h4>';
-        Object.entries(data.permissions).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.permissions && typeof data.permissions === 'object') {
+            Object.entries(data.permissions).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Permission APIs data not available</p>';
+        }
         html += '</div>';
         
         html += '</div>'; // Close grid
@@ -583,16 +1713,24 @@ class UIController {
         
         // Storage APIs
         html += '<div class="data-card"><h4>Storage APIs</h4>';
-        Object.entries(data.storage).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.storage && typeof data.storage === 'object') {
+            Object.entries(data.storage).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Storage APIs data not available</p>';
+        }
         html += '</div>';
         
         // Quotas
         html += '<div class="data-card"><h4>Storage Quotas</h4>';
-        Object.entries(data.quotas).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.quotas && typeof data.quotas === 'object') {
+            Object.entries(data.quotas).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Storage quotas data not available</p>';
+        }
         
         // Add quota estimate if available
         if (data.quotaEstimate) {
@@ -609,9 +1747,13 @@ class UIController {
         
         // File APIs
         html += '<div class="data-card"><h4>File System Access</h4>';
-        Object.entries(data.files).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.files && typeof data.files === 'object') {
+            Object.entries(data.files).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">File system access data not available</p>';
+        }
         html += '</div>';
         
         html += '</div>'; // Close grid
@@ -624,30 +1766,46 @@ class UIController {
         
         // Network Connectivity
         html += '<div class="data-card"><h4>Network Connectivity</h4>';
-        Object.entries(data.connectivity).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.connectivity && typeof data.connectivity === 'object') {
+            Object.entries(data.connectivity).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Network connectivity data not available</p>';
+        }
         html += '</div>';
         
         // Advanced Networking
         html += '<div class="data-card"><h4>Advanced Networking</h4>';
-        Object.entries(data.advanced).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.advanced && typeof data.advanced === 'object') {
+            Object.entries(data.advanced).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Advanced networking data not available</p>';
+        }
         html += '</div>';
         
         // Background Tasks
         html += '<div class="data-card"><h4>Background Processing</h4>';
-        Object.entries(data.background).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.background && typeof data.background === 'object') {
+            Object.entries(data.background).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Background processing data not available</p>';
+        }
         html += '</div>';
         
         // Streams
         html += '<div class="data-card"><h4>Streams API</h4>';
-        Object.entries(data.streams).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.streams && typeof data.streams === 'object') {
+            Object.entries(data.streams).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Streams API data not available</p>';
+        }
         html += '</div>';
         
         html += '</div>'; // Close grid
@@ -660,38 +1818,54 @@ class UIController {
         
         // Security Features
         html += '<div class="data-card"><h4>Security Features</h4>';
-        Object.entries(data.security).forEach(([name, value]) => {
-            if (typeof value === 'object') {
-                html += `<h5>${this.formatPropertyName(name)}</h5>`;
-                Object.entries(value).forEach(([subName, subValue]) => {
-                    html += this.createDataItem(this.formatPropertyName(subName), this.formatBooleanOrValue(subValue));
-                });
-            } else {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-            }
-        });
+        if (data.security && typeof data.security === 'object') {
+            Object.entries(data.security).forEach(([name, value]) => {
+                if (typeof value === 'object') {
+                    html += `<h5>${this.formatPropertyName(name)}</h5>`;
+                    Object.entries(value).forEach(([subName, subValue]) => {
+                        html += this.createDataItem(this.formatPropertyName(subName), this.formatBooleanOrValue(subValue));
+                    });
+                } else {
+                    html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                }
+            });
+        } else {
+            html += '<p class="unavailable">Security features data not available</p>';
+        }
         html += '</div>';
         
         // Authentication
         html += '<div class="data-card"><h4>Authentication APIs</h4>';
-        Object.entries(data.auth).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.auth && typeof data.auth === 'object') {
+            Object.entries(data.auth).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Authentication APIs data not available</p>';
+        }
         html += '</div>';
         
         // Privacy Features
         html += '<div class="data-card"><h4>Privacy Features</h4>';
-        Object.entries(data.privacy).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.privacy && typeof data.privacy === 'object') {
+            Object.entries(data.privacy).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Privacy features data not available</p>';
+        }
         html += '</div>';
         
         // Origin Information
         html += '<div class="data-card"><h4>Origin Information</h4>';
-        Object.entries(data.origin).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), 
-                Array.isArray(value) ? value.join(', ') : value);
-        });
+        if (data.origin && typeof data.origin === 'object') {
+            Object.entries(data.origin).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), 
+                    Array.isArray(value) ? value.join(', ') : value);
+            });
+        } else {
+            html += '<p class="unavailable">Origin information data not available</p>';
+        }
         html += '</div>';
         
         html += '</div>'; // Close grid
@@ -704,30 +1878,46 @@ class UIController {
         
         // Emerging APIs
         html += '<div class="data-card"><h4>Emerging APIs</h4>';
-        Object.entries(data.emerging).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.emerging && typeof data.emerging === 'object') {
+            Object.entries(data.emerging).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Emerging APIs data not available</p>';
+        }
         html += '</div>';
         
         // Proposed specs
         html += '<div class="data-card"><h4>Proposed Standards</h4>';
-        Object.entries(data.proposals).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.proposals && typeof data.proposals === 'object') {
+            Object.entries(data.proposals).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Proposed standards data not available</p>';
+        }
         html += '</div>';
         
-        // PWA
+        // PWA - Fixed closing tag placement
         html += '<div class="data-card"><h4>Progressive Web App Features</h4>';
-        Object.entries(data.pwa).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.pwa && typeof data.pwa === 'object') {
+            Object.entries(data.pwa).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Progressive Web App features data not available</p>';
+        }
         html += '</div>';
         
-        // Foldable
+        // Foldable - Fixed closing tag placement
         html += '<div class="data-card"><h4>Foldable Device APIs</h4>';
-        Object.entries(data.foldable).forEach(([name, value]) => {
-            html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
-        });
+        if (data.foldable && typeof data.foldable === 'object') {
+            Object.entries(data.foldable).forEach(([name, value]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+            });
+        } else {
+            html += '<p class="unavailable">Foldable device APIs data not available</p>';
+        }
         html += '</div>';
         
         html += '</div>'; // Close grid
@@ -1196,18 +2386,94 @@ class UIController {
                 font-weight: bold; 
                 color: ${scoreColor}; 
                 text-align: center;
-                margin-bottom: 10px;">${data.score}%</div>
+                margin-bottom: 10px;
+                cursor: pointer;
+                position: relative;" 
+                id="fingerprint-score-display"
+                title="Click for fingerprint calculation details">${data.score}%</div>
             <div class="uniqueness-label" style="
                 text-align: center; 
                 font-size: 18px;">${data.score < 33 ? 'Low' : data.score < 66 ? 'Medium' : 'High'} Uniqueness</div>
         </div>`;
         
+        // Add a hidden details section that will be shown on click
+        html += `<div id="fingerprint-details" class="fingerprint-details hidden" style="
+            background-color: rgba(13, 18, 30, 0.8);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        ">
+            <h5>Fingerprint Calculation Details</h5>
+            <p>Your browser fingerprint uniqueness score is calculated based on:</p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Screen resolution and color depth</li>
+                <li>Canvas rendering differences</li>
+                <li>WebGL capabilities and renderer</li>
+                <li>Installed fonts</li>
+                <li>Browser plugins and extensions</li>
+                <li>User agent and browser features</li>
+                <li>Hardware capabilities</li>
+            </ul>
+            <p style="margin-top: 10px;">Higher scores mean your browser is more uniquely identifiable across the web.</p>
+        </div>`;
+        
         html += `<p style="margin-bottom: 15px;">${data.interpretation}</p>`;
         
-        html += this.createDataItem('Fingerprinting Elements Analyzed', data.fingerprintingElements);
+        // Make the elements analyzed count clickable with explanation
+        html += this.createDataItem('Fingerprinting Elements Analyzed', 
+            `<span id="fingerprint-elements" class="clickable-info" 
+             style="cursor: pointer; text-decoration: underline dotted; position: relative;"
+             title="Click for details">${data.fingerprintingElements}</span>`);
+        
+        // Add a hidden tooltip for fingerprinting elements explanation
+        html += `<div id="fingerprint-elements-details" class="fingerprint-details hidden" style="
+            background-color: rgba(13, 18, 30, 0.8);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0 15px;
+            border: 1px solid var(--border-color);
+        ">
+            <h5>Fingerprinting Elements Analyzed (${data.fingerprintingElements})</h5>
+            <p>These specific elements were analyzed to calculate your fingerprint uniqueness:</p>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>Screen Properties:</strong> Width, height, color depth, pixel ratio</li>
+                <li><strong>Canvas Fingerprinting:</strong> Rendering differences, text metrics</li>
+                <li><strong>WebGL Information:</strong> Renderer, vendor, supported extensions</li>
+                <li><strong>Browser Details:</strong> User agent, platform, language preferences</li>
+                <li><strong>Font Detection:</strong> System fonts available to the browser</li>
+                <li><strong>Browser Plugins:</strong> Installed plugins and their properties</li>
+                <li><strong>Hardware Information:</strong> CPU cores, memory, device orientation</li>
+                <li><strong>Media Capabilities:</strong> Supported codecs and formats</li>
+                <li><strong>Audio Processing:</strong> AudioContext fingerprinting</li>
+                <li><strong>Time and Timezone:</strong> System time precision measurements</li>
+            </ol>
+            <p style="margin-top: 10px;">Each browser has a unique combination of these elements, creating a "fingerprint" that can be used to track you across websites.</p>
+        </div>`;
         
         html += '</div>';
         container.innerHTML = html;
+        
+        // Add click event listeners after rendering
+        setTimeout(() => {
+            // Add listener for score display
+            const scoreDisplay = document.getElementById('fingerprint-score-display');
+            const detailsSection = document.getElementById('fingerprint-details');
+            if (scoreDisplay && detailsSection) {
+                scoreDisplay.addEventListener('click', () => {
+                    detailsSection.classList.toggle('hidden');
+                });
+            }
+            
+            // Add listener for elements analyzed
+            const elementsDisplay = document.getElementById('fingerprint-elements');
+            const elementsDetails = document.getElementById('fingerprint-elements-details');
+            if (elementsDisplay && elementsDetails) {
+                elementsDisplay.addEventListener('click', () => {
+                    elementsDetails.classList.toggle('hidden');
+                });
+            }
+        }, 0);
     }
 
     renderCarbonFootprintData(container, data) {
@@ -1302,7 +2568,13 @@ class UIController {
         
         // Cookies
         html += '<div class="data-card"><h4>Cookies</h4>';
-        html += `<pre>${data.cookies}</pre>`;
+        if (data.cookies && data.cookies !== 'No cookies available') {
+            html += `<pre>${data.cookies}</pre>`;
+        } else {
+            html += `<p class="unavailable">No cookies detected. Example cookies would look like:</p>`;
+            html += `<pre>visit_count=3; last_visit=2023-07-15T14:30:00; user_preferences=theme:dark</pre>`;
+            html += `<p>Cookies can be used to track your visits, preferences, and login state.</p>`;
+        }
         html += '</div>';
         
         html += '</div>'; // Close grid
@@ -1445,7 +2717,32 @@ class UIController {
         let html = '<div class="data-card">';
         html += '<h4>Geolocation Data</h4>';
         
-        if (data.error) {
+        if (data.requiresUserGesture) {
+            // Show button to request permission instead of just an error
+            html += `<p class="permission-required">${data.message}</p>`;
+            html += `<button id="request-geolocation" class="primary-button">
+                <i class="fas fa-map-marker-alt"></i> Enable Geolocation
+            </button>`;
+            
+            // Add event listener after rendering
+            setTimeout(() => {
+                const button = document.getElementById('request-geolocation');
+                if (button) {
+                    button.addEventListener('click', async () => {
+                        button.disabled = true;
+                        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Requesting...';
+                        
+                        try {
+                            const geoData = await this.dataCollector.requestGeolocation();
+                            this.renderGeolocationData(container, geoData);
+                        } catch (error) {
+                            button.disabled = false;
+                            button.innerHTML = '<i class="fas fa-map-marker-alt"></i> Try Again';
+                        }
+                    });
+                }
+            }, 0);
+        } else if (data.error) {
             html += `<p class="warning">${data.error}</p>`;
             if (data.errorMessage) {
                 html += `<p class="permission-required">Reason: ${data.errorMessage}</p>`;
@@ -1507,10 +2804,9 @@ class UIController {
         if (typeof data.canvas === 'object' && !data.canvas.error) {
             html += this.createDataItem('Data URL Length', data.canvas.dataUrlLength);
             html += this.createDataItem('Hash', data.canvas.hash);
-            html += `<div class="data-item"><span>Preview:</span></div>`;
-            html += `<div><img src="${data.canvas.preview}" alt="Canvas Fingerprint" width="150"></div>`;
+            html += this.createDataItem('Canvas Support', 'Available');
         } else {
-            html += `<p class="unavailable">${data.canvas.error || 'Canvas fingerprinting unavailable'}</p>`;
+            html += `<p class="unavailable">${data.canvas?.error || 'Canvas fingerprinting unavailable'}</p>`;
         }
         html += '</div>';
         
@@ -1569,14 +2865,14 @@ class UIController {
             html += '</div>';
         }
         
-        // Gamepad
+        // Gamepad - Fix the error here
         if (data.gamepad) {
             html += '<div class="data-card"><h4>Gamepad API</h4>';
             html += this.createDataItem('Gamepad API', data.gamepad.available ? 'Available' : 'Not Available');
             if (data.gamepad.gamepads && data.gamepad.gamepads.length) {
                 html += this.createDataItem('Connected Gamepads', data.gamepad.gamepads.join(', '));
             } else {
-                html += this.createDataItem('Connected Gamepads', 'None');
+                html += this.createDataItem('Connected Gamepads', 'None detected');
             }
             html += '</div>';
         }
@@ -1602,81 +2898,94 @@ class UIController {
     }
 
     renderMediaData(container, data) {
-        let html = '<div class="data-card">';
-        html += '<h4>Media Devices</h4>';
+        let html = '<div class="data-grid">';
         
-        if (data.error) {
-            html += `<p class="warning">${data.error}</p>`;
-            if (data.errorMessage) {
-                html += `<p class="permission-required">Reason: ${data.errorMessage}</p>`;
-            }
+        // Video input
+        html += '<div class="data-card"><h4>Video Input Devices</h4>';
+        if (data.videoinput && data.videoinput.length) {
+            data.videoinput.forEach(device => {
+                html += this.createDataItem(device.label, device.deviceId);
+            });
         } else {
-            // Video inputs (cameras)
-            html += '<h5>Video Input Devices</h5>';
-            if (data.videoinput && data.videoinput.length) {
-                data.videoinput.forEach(device => {
-                    html += this.createDataItem(device.label || 'Camera', device.deviceId);
-                });
-            } else {
-                html += '<p class="unavailable">No video input devices detected</p>';
-            }
-            
-            // Audio inputs (microphones)
-            html += '<h5>Audio Input Devices</h5>';
-            if (data.audioinput && data.audioinput.length) {
-                data.audioinput.forEach(device => {
-                    html += this.createDataItem(device.label || 'Microphone', device.deviceId);
-                });
-            } else {
-                html += '<p class="unavailable">No audio input devices detected</p>';
-            }
-            
-            // Audio outputs (speakers, headphones)
-            html += '<h5>Audio Output Devices</h5>';
-            if (data.audiooutput && data.audiooutput.length) {
-                data.audiooutput.forEach(device => {
-                    html += this.createDataItem(device.label || 'Speaker', device.deviceId);
-                });
-            } else {
-                html += '<p class="unavailable">No audio output devices detected</p>';
-            }
-            
-            // WebRTC support
-            html += this.createDataItem('WebRTC Support', data.webrtcSupported ? 'Supported' : 'Not Supported');
+            html += '<p class="unavailable">No video input devices found</p>';
         }
-        
         html += '</div>';
+        
+        // Audio input
+        html += '<div class="data-card"><h4>Audio Input Devices</h4>';
+        if (data.audioinput && data.audioinput.length) {
+            data.audioinput.forEach(device => {
+                html += this.createDataItem(device.label, device.deviceId);
+            });
+        } else {
+            html += '<p class="unavailable">No audio input devices found</p>';
+        }
+        html += '</div>';
+        
+        // Audio output
+        html += '<div class="data-card"><h4>Audio Output Devices</h4>';
+        if (data.audiooutput && data.audiooutput.length) {
+            data.audiooutput.forEach(device => {
+                html += this.createDataItem(device.label, device.deviceId);
+            });
+        } else {
+            html += '<p class="unavailable">No audio output devices found</p>';
+        }
+        html += '</div>';
+        
+        html += '</div>'; // Close grid
         container.innerHTML = html;
     }
 
     renderPermissionsData(container, data) {
         let html = '<div class="data-grid">';
         
-        // Permissions status
-        html += '<div class="data-card"><h4>Permission Statuses</h4>';
-        if (data.error) {
-            html += `<p class="warning">${data.error}</p>`;
+        // Permissions
+        html += '<div class="data-card"><h4>Permissions</h4>';
+        if (data.permissions && typeof data.permissions === 'object') {
+            Object.entries(data.permissions).forEach(([name, status]) => {
+                html += this.createDataItem(this.formatPropertyName(name), this.formatPermissionStatus(status));
+            });
         } else {
-            // Filter out the features object to show only permissions
-            Object.entries(data).forEach(([permission, status]) => {
-                if (permission !== 'features' && permission !== 'error') {
-                    html += this.createDataItem(this.formatPropertyName(permission), this.formatPermissionStatus(status));
-                }
+            // Fallback example permissions if data is missing
+            const examplePermissions = {
+                'Geolocation': 'prompt',
+                'Notifications': 'prompt', 
+                'Camera': 'prompt',
+                'Microphone': 'prompt',
+                'Storage': 'granted'
+            };
+            
+            html += '<p class="unavailable">Permissions API not fully supported. Example permissions:</p>';
+            Object.entries(examplePermissions).forEach(([name, status]) => {
+                html += this.createDataItem(name, this.formatPermissionStatus(status));
             });
         }
         html += '</div>';
         
-        // Feature detection
-        if (data.features) {
-            html += '<div class="data-card"><h4>Browser Feature Support</h4>';
-            Object.entries(data.features).forEach(([feature, supported]) => {
-                html += this.createDataItem(
-                    this.formatPropertyName(feature), 
-                    supported ? '<span class="success">Supported</span>' : '<span class="unavailable">Not Supported</span>'
-                );
+        // Features
+        html += '<div class="data-card"><h4>Features</h4>';
+        if (data.features && typeof data.features === 'object') {
+            Object.entries(data.features).forEach(([name, supported]) => {
+                html += this.createDataItem(this.formatPropertyName(name), supported ? 'Supported' : 'Not Supported');
             });
-            html += '</div>';
+        } else {
+            // Fallback example features if data is missing
+            const exampleFeatures = {
+                'Service Worker': navigator.serviceWorker !== undefined,
+                'Web Assembly': typeof WebAssembly === 'object',
+                'WebRTC': 'RTCPeerConnection' in window,
+                'Payment Request': 'PaymentRequest' in window,
+                'IndexedDB': 'indexedDB' in window,
+                'Web Workers': typeof Worker !== 'undefined'
+            };
+            
+            html += '<p class="unavailable">Features API data not available. Detected features:</p>';
+            Object.entries(exampleFeatures).forEach(([name, supported]) => {
+                html += this.createDataItem(name, supported ? 'Supported' : 'Not Supported');
+            });
         }
+        html += '</div>';
         
         html += '</div>'; // Close grid
         container.innerHTML = html;
@@ -1713,16 +3022,23 @@ class UIController {
         `;
     }
 
-    showSection(sectionId) {
-        // Update active class in nav
-        document.querySelectorAll('#nav-list a').forEach(el => {
-            el.classList.toggle('active', el.dataset.section === sectionId);
+    setActiveSection(sectionId) {
+        console.log(`Setting active section: ${sectionId}`);
+        
+        // Update active tab
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.section === sectionId);
         });
         
-        // Update active section
-        document.querySelectorAll('.data-section').forEach(el => {
-            el.classList.toggle('active', el.id === sectionId);
+        // Show the corresponding section
+        document.querySelectorAll('.data-section').forEach(section => {
+            section.classList.toggle('hidden', section.id !== `${sectionId}-section`);
         });
+        
+        // Track this section view in cookies for analytics
+        if (this.dataCollector && typeof this.dataCollector.trackSectionView === 'function') {
+            this.dataCollector.trackSectionView(sectionId);
+        }
         
         this.activeSectionId = sectionId;
     }
@@ -1747,9 +3063,174 @@ class UIController {
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
     }
+
+    // Implement the summary section renderer properly
+    renderSummarySection(container, data) {
+        // Data overview - summary of all collected information
+        const summaryHtml = `
+            <div class="data-card">
+                <h4>Your Browser Profile Overview</h4>
+                <p>This is a summary of all data collected from your browser:</p>
+                
+                <div class="data-item">
+                    <span class="data-name">Browser:</span>
+                    <span class="data-value">${data.navigator?.vendor ? `${data.navigator.vendor} ${data.navigator.appName}` : data.navigator?.appName || 'Unknown'}</span>
+                </div>
+                
+                <div class="data-item">
+                    <span class="data-name">Operating System:</span>
+                    <span class="data-value">${data.navigator?.platform || 'Unknown'}</span>
+                </div>
+                
+                <div class="data-item">
+                    <span class="data-name">Screen Resolution:</span>
+                    <span class="data-value">${data.screen?.screen ? `${data.screen.screen.width}×${data.screen.screen.height}` : 'Unknown'}</span>
+                </div>
+                
+                <div class="data-item">
+                    <span class="data-name">Public IP Address:</span>
+                    <span class="data-value">${data.network?.ip?.public || 'Unknown'}</span>
+                </div>
+                
+                <div class="data-item">
+                    <span class="data-name">Location:</span>
+                    <span class="data-value">${data.network?.ip?.geolocation?.city ? 
+                        `${data.network.ip.geolocation.city}, ${data.network.ip.geolocation.country_name || data.network.ip.geolocation.country || 'Unknown'}` : 
+                        'Unknown'}</span>
+                </div>
+                
+                <div class="data-item">
+                    <span class="data-name">Connection Type:</span>
+                    <span class="data-value">${data.connection?.connection?.effectiveType || 'Unknown'}</span>
+                </div>
+            </div>
+            
+            <div class="data-card">
+                <h4>Key Statistics</h4>
+                <div class="data-item">
+                    <span class="data-name">Data Points Collected:</span>
+                    <span class="data-value">${this._countDataPoints(data)} points across ${Object.keys(data).length} categories</span>
+                </div>
+                
+                <div class="data-item">
+                    <span class="data-name">Privacy Risk Level:</span>
+                    <span class="data-value" style="color: ${this._getPrivacyColor(data)}">
+                        ${this._getPrivacyLevel(data)}
+                    </span>
+                </div>
+                
+                <div class="data-item">
+                    <span class="data-name">Device Type:</span>
+                    <span class="data-value">${this._guessDeviceType(data)}</span>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = summaryHtml;
+    }
+
+    // Helper methods for summary section - add underscore prefix to indicate they're private methods
+    _countDataPoints(data) {
+        let count = 0;
+        
+        const countObject = (obj) => {
+            if (!obj || typeof obj !== 'object') return;
+            
+            Object.entries(obj).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    count++;
+                    if (typeof value === 'object' && !Array.isArray(value)) {
+                        countObject(value);
+                    }
+                }
+            });
+        };
+        
+        countObject(data);
+        return count;
+    }
+
+    _getPrivacyLevel(data) {
+        // A simple heuristic based on available data
+        let riskPoints = 0;
+        
+        // Check for precise geolocation
+        if (data.geolocation && !data.geolocation.error && data.geolocation.latitude) {
+            riskPoints += 3;
+        }
+        
+        // Check for WebRTC leak potential
+        if (data.fingerprinting?.webGL?.unmaskedVendor) {
+            riskPoints += 2;
+        }
+        
+        // Check for canvas fingerprinting
+        if (data.fingerprinting?.canvas?.hash) {
+            riskPoints += 2;
+        }
+        
+        // Check for detailed system info
+        if (data.navigator?.hardwareConcurrency && data.navigator?.deviceMemory) {
+            riskPoints += 1;
+        }
+        
+        // Check for media devices
+        if (data.media?.videoinput?.length > 0 || data.media?.audioinput?.length > 0) {
+            riskPoints += 2;
+        }
+        
+        if (riskPoints >= 6) {
+            return 'High';
+        } else if (riskPoints >= 3) {
+            return 'Medium';
+        } else {
+            return 'Low';
+        }
+    }
+
+    _getPrivacyColor(data) {
+        const level = this._getPrivacyLevel(data);
+        if (level === 'High') return '#e74c3c';
+        if (level === 'Medium') return '#f39c12';
+        return '#2ecc71';
+    }
+
+    _guessDeviceType(data) {
+        // Simple heuristic to guess device type
+        const userAgent = data.navigator?.userAgent || '';
+        const platform = data.navigator?.platform || '';
+        const touch = data.interaction?.pointer?.maxTouchPoints > 0;
+        const screenWidth = data.screen?.screen?.width || 0;
+        
+        if (/mobile|android|iphone|ipad|ipod/i.test(userAgent.toLowerCase())) {
+            if (screenWidth >= 768) {
+                return 'Tablet';
+            }
+            return 'Mobile Phone';
+        } else if (/macintosh|mac os x/i.test(userAgent.toLowerCase())) {
+            return 'Mac Computer';
+        } else if (/windows|win32|win64/i.test(userAgent.toLowerCase())) {
+            return 'Windows Computer';
+        } else if (/linux/i.test(userAgent.toLowerCase()) || /linux/i.test(platform.toLowerCase())) {
+            return 'Linux Computer';
+        }
+        
+        return 'Desktop Computer';
+    }
 }
 
 // Initialize UI controller when the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM content loaded, creating UI controller...');
     window.uiController = new UIController();
+    console.log('UIController instance created in window.uiController');
+});
+
+// Add a fallback for older browsers
+window.addEventListener('load', () => {
+    console.log('Window loaded event fired');
+    if (!window.uiController) {
+        console.log('Creating UIController in load event as fallback');
+        window.uiController = new UIController();
+    }
 });

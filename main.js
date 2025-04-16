@@ -1,7 +1,6 @@
 class DataCollector {
     constructor() {
         this.collectedData = {};
-        this.permissionCallbacks = {};
         this.collectors = {
             'network': this.collectNetworkData.bind(this),
             'navigator': this.collectNavigatorData.bind(this),
@@ -14,6 +13,12 @@ class DataCollector {
             'media': this.collectMediaDevicesData.bind(this),
             'permissions': this.collectPermissionsData.bind(this)
         };
+        
+        // Set up user tracking cookies
+        this.setupUserTrackingCookies();
+        
+        // Track this visit
+        this.trackPageVisit();
     }
 
     async collectAllData() {
@@ -221,14 +226,28 @@ class DataCollector {
             return { error: 'Geolocation API not available' };
         }
         
+        // Return a placeholder instead of automatically requesting position
+        // This prevents the permission prompt from appearing without user interaction
+        return {
+            requiresUserGesture: true,
+            error: 'Permission required',
+            message: 'Geolocation requires user permission. Click to enable location access.',
+            permissionStatus: 'not-requested'
+        };
+    }
+
+    async requestGeolocation() {
+        // This should be called in response to a user gesture
+        if (!('geolocation' in navigator)) {
+            return { error: 'Geolocation API not available' };
+        }
+        
         try {
-            const position = await this._requestPermission('geolocation', () => {
-                return new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
-                    });
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
                 });
             });
             
@@ -340,34 +359,27 @@ class DataCollector {
         }
         
         try {
-            const devices = await this._requestPermission('camera', async () => {
-                // This will trigger permission prompts
-                await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-                    .then(stream => {
-                        // Stop all tracks immediately after getting the permission
-                        stream.getTracks().forEach(track => track.stop());
-                    })
-                    .catch(() => {
-                        // We still try to enumerate devices even if getUserMedia fails
-                    });
-                
-                return navigator.mediaDevices.enumerateDevices();
-            });
-            
+            // Let browser handle permissions natively
             const deviceInfo = {
                 videoinput: [],
                 audioinput: [],
                 audiooutput: []
             };
             
-            devices.forEach(device => {
-                if (deviceInfo[device.kind]) {
-                    deviceInfo[device.kind].push({
-                        deviceId: device.deviceId.substring(0, 8) + '...',
-                        label: device.label || 'Permission required for label'
-                    });
-                }
-            });
+            try {
+                // Only enumerate devices that are already accessible or don't require permission
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                devices.forEach(device => {
+                    if (deviceInfo[device.kind]) {
+                        deviceInfo[device.kind].push({
+                            deviceId: device.deviceId.substring(0, 8) + '...',
+                            label: device.label || 'Permission required for label'
+                        });
+                    }
+                });
+            } catch (e) {
+                console.log("Could not enumerate devices", e);
+            }
             
             // WebRTC capability
             deviceInfo.webrtcSupported = 'RTCPeerConnection' in window;
@@ -375,7 +387,7 @@ class DataCollector {
             return deviceInfo;
         } catch (error) {
             return {
-                error: 'Media devices enumeration failed or permission denied',
+                error: 'Media devices enumeration failed',
                 errorMessage: error.message
             };
         }
@@ -435,30 +447,6 @@ class DataCollector {
     }
 
     // Helper methods
-    async _requestPermission(type, callback) {
-        return new Promise((resolve, reject) => {
-            this.permissionCallbacks[type] = {
-                onGrant: async () => {
-                    try {
-                        const result = await callback();
-                        resolve(result);
-                    } catch (error) {
-                        reject(error);
-                    }
-                },
-                onDeny: () => {
-                    reject(new Error('Permission denied by user'));
-                }
-            };
-            
-            // Trigger the UI to show permission request
-            const event = new CustomEvent('permission-request', { 
-                detail: { type, message: `This site wants to access your ${type}` }
-            });
-            window.dispatchEvent(event);
-        });
-    }
-
     _testMediaQuery(query) {
         return window.matchMedia(query).matches;
     }
@@ -476,7 +464,9 @@ class DataCollector {
 
     _getCanvasFingerprint() {
         try {
-            const canvas = document.getElementById('fingerprint-canvas');
+            const canvas = document.createElement('canvas'); // Create a new canvas instead of using the one from the DOM
+            canvas.width = 220;
+            canvas.height = 30;
             const ctx = canvas.getContext('2d');
             
             // Draw background
@@ -495,16 +485,25 @@ class DataCollector {
             ctx.arc(170, 15, 10, 0, Math.PI * 2);
             ctx.fill();
             
-            // Get the data URL and hash it
-            const dataURL = canvas.toDataURL();
-            return {
-                dataUrlLength: dataURL.length,
-                hash: this._simpleHash(dataURL),
-                // Don't include the full dataURL as it's very large
-                preview: dataURL.substring(0, 64) + '...'
-            };
+            // Get the data URL and hash it but don't store the full URL
+            try {
+                const dataURL = canvas.toDataURL();
+                return {
+                    dataUrlLength: dataURL.length,
+                    hash: this._simpleHash(dataURL),
+                    // Don't include the full dataURL at all to avoid issues
+                    preview: null
+                };
+            } catch (urlError) {
+                return {
+                    dataUrlLength: 'Error getting data URL',
+                    hash: 'Error',
+                    preview: null
+                };
+            }
         } catch (error) {
-            return { error: 'Canvas fingerprinting failed' };
+            console.error('Canvas fingerprinting error:', error);
+            return { error: 'Canvas fingerprinting failed: ' + error.message };
         }
     }
 
@@ -579,6 +578,94 @@ class DataCollector {
         } catch (error) {
             return { error: 'Audio fingerprinting failed' };
         }
+    }
+
+    // Helper method to read cookies
+    getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+    
+    setupUserTrackingCookies() {
+        // Initialize cookies if they don't exist
+        if (!this.getCookie('visit_count')) {
+            document.cookie = `visit_count=0; max-age=31536000; path=/; SameSite=Strict`;
+        }
+        
+        if (!this.getCookie('sections_viewed')) {
+            document.cookie = `sections_viewed={}; max-age=31536000; path=/; SameSite=Strict`;
+        }
+        
+        if (!this.getCookie('visit_dates')) {
+            document.cookie = `visit_dates=[]; max-age=31536000; path=/; SameSite=Strict`;
+        }
+    }
+    
+    trackPageVisit() {
+        // Increment visit count
+        let visitCount = parseInt(this.getCookie('visit_count') || '0') + 1;
+        const currentVisit = new Date().toISOString();
+        
+        // Get previous visits array
+        let visitDates = [];
+        try {
+            visitDates = JSON.parse(this.getCookie('visit_dates') || '[]');
+            // Limit to last 10 visits to keep cookie size reasonable
+            if (visitDates.length > 9) {
+                visitDates = visitDates.slice(-9);
+            }
+        } catch (e) {
+            console.error('Error parsing visit_dates cookie:', e);
+        }
+        
+        // Add current visit to the array
+        visitDates.push(currentVisit);
+        
+        // Update cookies with 1-year expiration
+        document.cookie = `visit_count=${visitCount}; max-age=31536000; path=/; SameSite=Strict`;
+        document.cookie = `last_visit=${currentVisit}; max-age=31536000; path=/; SameSite=Strict`;
+        document.cookie = `visit_dates=${JSON.stringify(visitDates)}; max-age=31536000; path=/; SameSite=Strict`;
+    }
+    
+    trackSectionView(sectionId) {
+        // Get sections viewed object
+        let sectionsViewed = {};
+        try {
+            sectionsViewed = JSON.parse(this.getCookie('sections_viewed') || '{}');
+        } catch (e) {
+            console.error('Error parsing sections_viewed cookie:', e);
+        }
+        
+        // Increment section view count
+        sectionsViewed[sectionId] = (sectionsViewed[sectionId] || 0) + 1;
+        
+        // Update cookie
+        document.cookie = `sections_viewed=${JSON.stringify(sectionsViewed)}; max-age=31536000; path=/; SameSite=Strict`;
+        
+        return sectionsViewed;
+    }
+    
+    getUserActivityData() {
+        const visitCount = parseInt(this.getCookie('visit_count') || '0');
+        const lastVisit = this.getCookie('last_visit') || null;
+        let visitDates = [];
+        let sectionsViewed = {};
+        
+        try {
+            visitDates = JSON.parse(this.getCookie('visit_dates') || '[]');
+            sectionsViewed = JSON.parse(this.getCookie('sections_viewed') || '{}');
+        } catch (e) {
+            console.error('Error parsing activity cookies:', e);
+        }
+        
+        return {
+            visitCount,
+            lastVisit,
+            visitDates,
+            sectionsViewed
+        };
     }
 }
 

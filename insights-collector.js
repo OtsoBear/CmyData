@@ -86,8 +86,9 @@ class InsightsCollector {
                 `https://api.openweathermap.org/data/2.5/weather?lat=${coords.latitude}&lon=${coords.longitude}&appid=${apiKey}&units=metric`
             );
             
-            // If the API call would fail due to API key, provide mock data
+            // If the API call fails, provide mock data
             if (!response.ok) {
+                console.warn('Weather API returned error, using mock data');
                 return this.getMockWeatherData(coords);
             }
             
@@ -215,13 +216,20 @@ class InsightsCollector {
 
     async getInternetHealthData() {
         try {
-            // Perform a simple latency test
+            // Use a more reliable endpoint that's likely to work
             const startTime = performance.now();
-            const response = await fetch('https://www.googleapis.com/dns/v1/resolveRecursively?servers=8.8.8.8', {
-                method: 'HEAD',
-                mode: 'no-cors' // This might not give accurate results due to CORS, but it's a simple test
+            
+            // Use a basic fetch to a reliable endpoint instead of Google DNS
+            const response = await fetch('https://httpbin.org/get', {
+                method: 'GET',
+                cache: 'no-cache' // Ensure we don't get a cached response
             });
+            
             const endTime = performance.now();
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
             
             return {
                 latency: Math.round(endTime - startTime),
