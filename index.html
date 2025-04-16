@@ -1,0 +1,66 @@
+<!-- filepath: index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Data Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Browser Data Explorer</h1>
+        <p>Exploring what websites can learn about you</p>
+    </header>
+
+    <nav id="sidebar">
+        <ul id="nav-list">
+            <!-- Navigation links will be populated by JavaScript -->
+        </ul>
+    </nav>
+
+    <main id="content">
+        <section id="intro" class="data-section active">
+            <h2>Welcome to Browser Data Explorer</h2>
+            <p>This demonstration shows what information websites can collect about you just by you visiting them. 
+            All data shown is collected purely client-side using standard browser APIs.</p>
+            <p>Select a category from the menu to see specific information.</p>
+            <p><strong>Note:</strong> Some features require your permission (like geolocation) 
+            and some may only work in specific browsers.</p>
+            
+            <div class="button-container">
+                <button id="collect-all-data" class="primary-button">Collect All Data</button>
+                <button id="export-data" class="secondary-button" disabled>Export Data (JSON)</button>
+            </div>
+
+            <div id="loading-indicator" class="hidden">
+                <div class="spinner"></div>
+                <p>Collecting data...</p>
+            </div>
+        </section>
+
+        <!-- Data section templates - will be populated by JavaScript -->
+    </main>
+
+    <!-- Permission request modal -->
+    <div id="permission-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Permission Required</h2>
+            <p id="permission-message">This website would like to access additional information.</p>
+            <div class="button-container">
+                <button id="grant-permission" class="primary-button">Allow</button>
+                <button id="deny-permission" class="secondary-button">Deny</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas fingerprinting is done offscreen -->
+    <canvas id="fingerprint-canvas" width="220" height="30" style="display: none;"></canvas>
+    
+    <script src="main.js"></script>
+    <script src="comprehensive-collector.js"></script>
+    <script src="enhanced-collector.js"></script>
+    <script src="insights-collector.js"></script>
+    <script src="ui-controller.js"></script>
+</body>
+</html>
