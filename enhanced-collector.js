@@ -25,6 +25,68 @@ class EnhancedDataCollector {
         return data;
     }
 
+    async collectAll() {
+        // Assuming this method orchestrates the deviceInfo collection
+        // Note: The main 'deviceInfo' timing is started/ended in ui-controller.js
+
+        let collectedData = {};
+
+        try {
+            window.startSubTiming('deviceInfo', 'deviceInfo-hardware', 'Hardware Detection');
+            collectedData.hardware = await this.getHardwareInfo();
+            window.endSubTiming('deviceInfo', 'deviceInfo-hardware');
+
+            window.startSubTiming('deviceInfo', 'deviceInfo-platform', 'Platform Analysis');
+            collectedData.platform = await this.getPlatformInfo();
+            window.endSubTiming('deviceInfo', 'deviceInfo-platform');
+
+            window.startSubTiming('deviceInfo', 'deviceInfo-screen', 'Screen Configuration');
+            collectedData.screen = await this.getScreenInfo();
+            window.endSubTiming('deviceInfo', 'deviceInfo-screen');
+
+            window.startSubTiming('deviceInfo', 'deviceInfo-memory', 'Memory Assessment');
+            collectedData.memory = await this.getMemoryInfo();
+            window.endSubTiming('deviceInfo', 'deviceInfo-memory');
+
+            // Add other enhanced data collection parts here if necessary
+
+        } catch (error) {
+            console.error("Error in EnhancedDataCollector:", error);
+            // Ensure timings are ended if an error occurs mid-collection
+             if (window._timingData?.subSteps?.deviceInfo?.['deviceInfo-hardware'] && !window._timingData.subSteps.deviceInfo['deviceInfo-hardware'].end) window.endSubTiming('deviceInfo', 'deviceInfo-hardware');
+             if (window._timingData?.subSteps?.deviceInfo?.['deviceInfo-platform'] && !window._timingData.subSteps.deviceInfo['deviceInfo-platform'].end) window.endSubTiming('deviceInfo', 'deviceInfo-platform');
+             if (window._timingData?.subSteps?.deviceInfo?.['deviceInfo-screen'] && !window._timingData.subSteps.deviceInfo['deviceInfo-screen'].end) window.endSubTiming('deviceInfo', 'deviceInfo-screen');
+             if (window._timingData?.subSteps?.deviceInfo?.['deviceInfo-memory'] && !window._timingData.subSteps.deviceInfo['deviceInfo-memory'].end) window.endSubTiming('deviceInfo', 'deviceInfo-memory');
+        }
+
+        return { enhanced: collectedData }; // Example structure
+    }
+
+    async getHardwareInfo() {
+        // Simulate work
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
+        console.log("Collected Hardware Info");
+        return { cpuCores: navigator.hardwareConcurrency || 'N/A' };
+    }
+    async getPlatformInfo() {
+        // Simulate work
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 30));
+         console.log("Collected Platform Info");
+        return { platform: navigator.platform || 'N/A', userAgent: navigator.userAgent || 'N/A' };
+    }
+    async getScreenInfo() {
+        // Simulate work
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 30));
+         console.log("Collected Screen Info");
+        return { width: screen.width, height: screen.height, colorDepth: screen.colorDepth };
+    }
+    async getMemoryInfo() {
+        // Simulate work
+        await new Promise(resolve => setTimeout(resolve, 80 + Math.random() * 40));
+         console.log("Collected Memory Info");
+        return { deviceMemory: (navigator.deviceMemory !== undefined) ? `${navigator.deviceMemory} GB` : 'N/A' };
+    }
+
     async detectInstalledFonts() {
         // A simplified approach to font detection
         const fontFamilies = [

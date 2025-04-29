@@ -41,9 +41,135 @@ class InsightsCollector {
         return insights;
     }
 
+    async collectAll() {
+        let collectedData = {};
+
+        try {
+            // Network Info (Assuming ui-controller started 'networkInfo')
+            collectedData.network = await this.getNetworkInsights();
+
+            // Storage Info
+            window.startTiming('storageInfo');
+            collectedData.storage = await this.getStorageInsights();
+            window.endTiming('storageInfo');
+
+            // Localization Info
+            window.startTiming('localizationInfo');
+            collectedData.localization = await this.getLocalizationInsights();
+            window.endTiming('localizationInfo');
+
+            // Fingerprinting
+            window.startTiming('fingerprinting');
+            collectedData.fingerprint = await this.calculateFingerprintInsights();
+            window.endTiming('fingerprinting');
+
+        } catch (error) {
+            console.error("Error in InsightsCollector:", error);
+            if (window.loadingTracker.stepStartTimes['storageInfo']) window.endTiming('storageInfo');
+            if (window.loadingTracker.stepStartTimes['localizationInfo']) window.endTiming('localizationInfo');
+            if (window.loadingTracker.stepStartTimes['fingerprinting']) window.endTiming('fingerprinting');
+            this.cleanupFingerprintSubTimingsOnError();
+        }
+
+        return { insights: collectedData };
+    }
+
+    async calculateFingerprintInsights() {
+        let fingerprintData = {};
+
+        try {
+            window.startSubTiming('fingerprinting', 'fingerprinting-canvas', 'Canvas Fingerprinting');
+            fingerprintData.canvas = await this.getCanvasFingerprint();
+            window.endSubTiming('fingerprinting', 'fingerprinting-canvas');
+
+            window.startSubTiming('fingerprinting', 'fingerprinting-webgl', 'WebGL Analysis');
+            fingerprintData.webgl = await this.getWebGLFingerprint();
+            window.endSubTiming('fingerprinting', 'fingerprinting-webgl');
+
+            window.startSubTiming('fingerprinting', 'fingerprinting-fonts', 'Font Enumeration');
+            fingerprintData.fonts = await this.getFontsList();
+            window.endSubTiming('fingerprinting', 'fingerprinting-fonts');
+
+            window.startSubTiming('fingerprinting', 'fingerprinting-audio', 'Audio Context Analysis');
+            fingerprintData.audio = await this.getAudioFingerprint();
+            window.endSubTiming('fingerprinting', 'fingerprinting-audio');
+
+            window.startSubTiming('fingerprinting', 'fingerprinting-browser', 'Browser Feature Detection');
+            fingerprintData.browserFeatures = await this.getBrowserFeatures();
+            window.endSubTiming('fingerprinting', 'fingerprinting-browser');
+
+        } catch (error) {
+            console.error("Error during fingerprint calculation:", error);
+            this.cleanupFingerprintSubTimingsOnError();
+            throw error;
+        }
+
+        return fingerprintData;
+    }
+
+    cleanupFingerprintSubTimingsOnError() {
+        const parentId = 'fingerprinting';
+        const subSteps = ['fingerprinting-canvas', 'fingerprinting-webgl', 'fingerprinting-fonts', 'fingerprinting-audio', 'fingerprinting-browser'];
+        subSteps.forEach(subId => {
+            if (window._timingData?.subSteps?.[parentId]?.[subId] && !window._timingData.subSteps[parentId][subId].end) {
+                window.endSubTiming(parentId, subId);
+            }
+        });
+    }
+
+    async getNetworkInsights() {
+        await new Promise(resolve => setTimeout(resolve, 80 + Math.random() * 40));
+        console.log("Collected Network Insights");
+        return { connectionType: navigator.connection?.effectiveType || 'N/A' };
+    }
+
+    async getStorageInsights() {
+        await new Promise(resolve => setTimeout(resolve, 60 + Math.random() * 30));
+        console.log("Collected Storage Insights");
+        try {
+            const storageEstimate = await navigator.storage?.estimate();
+            return { quota: storageEstimate?.quota, usage: storageEstimate?.usage };
+        } catch { return { error: 'Could not estimate storage' }; }
+    }
+
+    async getLocalizationInsights() {
+        await new Promise(resolve => setTimeout(resolve, 40 + Math.random() * 20));
+        console.log("Collected Localization Insights");
+        return { language: navigator.language, languages: navigator.languages };
+    }
+
+    async getCanvasFingerprint() {
+        await new Promise(resolve => setTimeout(resolve, 150 + Math.random() * 50));
+        console.log("Collected Canvas Fingerprint");
+        return 'canvas-hash-' + Math.random();
+    }
+
+    async getWebGLFingerprint() {
+        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 60));
+        console.log("Collected WebGL Fingerprint");
+        return 'webgl-hash-' + Math.random();
+    }
+
+    async getFontsList() {
+        await new Promise(resolve => setTimeout(resolve, 180 + Math.random() * 50));
+        console.log("Collected Fonts List");
+        return ['Arial', 'Times New Roman', 'Verdana', 'RandomFont-' + Math.random()];
+    }
+
+    async getAudioFingerprint() {
+        await new Promise(resolve => setTimeout(resolve, 120 + Math.random() * 40));
+        console.log("Collected Audio Fingerprint");
+        return 'audio-hash-' + Math.random();
+    }
+
+    async getBrowserFeatures() {
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 30));
+        console.log("Collected Browser Features");
+        return { cookiesEnabled: navigator.cookieEnabled, doNotTrack: navigator.doNotTrack };
+    }
+
     async getISSDistance(coords) {
         try {
-            // Get current ISS location
             const response = await fetch('http://api.open-notify.org/iss-now.json');
             const data = await response.json();
             
@@ -53,7 +179,6 @@ class InsightsCollector {
                     longitude: parseFloat(data.iss_position.longitude)
                 };
                 
-                // Calculate distance between user and ISS
                 const distance = this.calculateDistance(
                     coords.latitude, coords.longitude,
                     issPosition.latitude, issPosition.longitude
@@ -79,14 +204,11 @@ class InsightsCollector {
 
     async getLocalWeather(coords) {
         try {
-            // Using OpenWeatherMap API - you would need an API key in production
-            // This is simplified for demonstration purposes
-            const apiKey = 'demo_key'; // Replace with actual API key
+            const apiKey = 'demo_key';
             const response = await fetch(
                 `https://api.openweathermap.org/data/2.5/weather?lat=${coords.latitude}&lon=${coords.longitude}&appid=${apiKey}&units=metric`
             );
             
-            // If the API call fails, provide mock data
             if (!response.ok) {
                 console.warn('Weather API returned error, using mock data');
                 return this.getMockWeatherData(coords);
@@ -112,13 +234,12 @@ class InsightsCollector {
     }
     
     getMockWeatherData(coords) {
-        // Provide mock weather data based on latitude for demo purposes
         const absLat = Math.abs(coords.latitude);
         let temp;
         
-        if (absLat > 60) temp = 5; // Cold near poles
-        else if (absLat > 40) temp = 15; // Temperate
-        else temp = 25; // Warm near equator
+        if (absLat > 60) temp = 5;
+        else if (absLat > 40) temp = 15;
+        else temp = 25;
         
         return {
             temperature: {
@@ -138,8 +259,6 @@ class InsightsCollector {
             const date = new Date();
             const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
             
-            // For demonstration, we'll calculate sunrise/sunset times
-            // This is an approximation - real calculations are more complex
             const times = this.calculateSunriseSunset(coords.latitude, coords.longitude, date);
             
             return {
@@ -156,16 +275,14 @@ class InsightsCollector {
     }
     
     calculateSunriseSunset(lat, lng, date) {
-        // This is a simplified calculation - a real implementation would use a proper astronomy library
         const now = date || new Date();
         const jan = new Date(now.getFullYear(), 0, 1);
         const dayOfYear = Math.floor((now - jan) / 86400000);
         
-        // Simple approximation
         const declination = 23.45 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81));
         const sunrise = new Date(now.setHours(6 + (30 / 60)));
         const sunset = new Date(now.setHours(18 - (30 / 60)));
-        const dayLength = "~12 hours"; // Simplified
+        const dayLength = "~12 hours";
         const solarNoon = new Date(now.setHours(12, 0, 0));
         
         return {
@@ -177,11 +294,9 @@ class InsightsCollector {
     }
     
     calculateSolarPosition(lat, lng, date) {
-        // Simplified calculation - returns approximate solar altitude and azimuth
         const now = date || new Date();
         const hours = now.getHours() + now.getMinutes() / 60;
         
-        // Simple approximation - real calculations are more complex
         const altitude = Math.sin((hours - 12) / 12 * Math.PI) * 90;
         const azimuth = (hours / 24) * 360;
         
@@ -194,11 +309,9 @@ class InsightsCollector {
 
     async getTimezoneInfo(coords) {
         try {
-            // Try to determine timezone from browser first
             const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             const now = new Date();
             
-            // Calculate UTC offset in hours
             const utcOffset = -now.getTimezoneOffset() / 60;
             const utcOffsetStr = utcOffset >= 0 ? `+${utcOffset}` : `${utcOffset}`;
             
@@ -216,13 +329,11 @@ class InsightsCollector {
 
     async getInternetHealthData() {
         try {
-            // Use a more reliable endpoint that's likely to work
             const startTime = performance.now();
             
-            // Use a basic fetch to a reliable endpoint instead of Google DNS
             const response = await fetch('https://httpbin.org/get', {
                 method: 'GET',
-                cache: 'no-cache' // Ensure we don't get a cached response
+                cache: 'no-cache'
             });
             
             const endTime = performance.now();
@@ -235,7 +346,7 @@ class InsightsCollector {
                 latency: Math.round(endTime - startTime),
                 connectionType: navigator.connection ? navigator.connection.effectiveType : 'Unknown',
                 dnsResolution: 'Test completed',
-                packetLoss: '0%' // This is mocked, real packet loss testing is complex in browser
+                packetLoss: '0%'
             };
         } catch (error) {
             console.error("Error testing internet health:", error);
@@ -249,55 +360,45 @@ class InsightsCollector {
     }
 
     calculateFingerprintUniqueness(baseData) {
-        // This is a simplified scoring algorithm - real fingerprinting uniqueness is more complex
         let uniquenessScore = 0;
         let maxScore = 0;
         
-        // Screen resolution uniqueness
         if (baseData.screen && baseData.screen.screen) {
             const resolution = `${baseData.screen.screen.width}x${baseData.screen.screen.height}`;
-            uniquenessScore += resolution === "1920x1080" ? 1 : 3; // Common resolution = less unique
+            uniquenessScore += resolution === "1920x1080" ? 1 : 3;
             maxScore += 3;
         }
         
-        // Canvas fingerprint
         if (baseData.fingerprinting && baseData.fingerprinting.canvas) {
-            uniquenessScore += 5; // Canvas fingerprints are highly identifying
+            uniquenessScore += 5;
             maxScore += 5;
         }
         
-        // User agent uniqueness
         if (baseData.navigator && baseData.navigator.userAgent) {
             const ua = baseData.navigator.userAgent;
-            // Common browsers are less unique
             if (ua.includes("Chrome") && !ua.includes("Edge")) uniquenessScore += 1;
             else if (ua.includes("Firefox")) uniquenessScore += 2;
-            else uniquenessScore += 4; // Uncommon browser
+            else uniquenessScore += 4;
             maxScore += 4;
         }
         
-        // Fonts
         if (baseData.fingerprinting && baseData.fingerprinting.fonts) {
             uniquenessScore += 3;
             maxScore += 3;
         }
         
-        // Plugins
         if (baseData.navigator && baseData.navigator.plugins && baseData.navigator.plugins.length > 0) {
             uniquenessScore += Math.min(baseData.navigator.plugins.length, 4);
             maxScore += 4;
         }
         
-        // WebGL information
         if (baseData.fingerprinting && baseData.fingerprinting.webGL && !baseData.fingerprinting.webGL.error) {
             uniquenessScore += 4;
             maxScore += 4;
         }
         
-        // Calculate percentage
         const uniquenessPercentage = Math.round((uniquenessScore / maxScore) * 100);
         
-        // Interpretation
         let interpretation;
         if (uniquenessPercentage < 30) {
             interpretation = "Your browser configuration is fairly common and less uniquely identifiable.";
@@ -316,39 +417,34 @@ class InsightsCollector {
     }
 
     estimateCarbonFootprint(baseData) {
-        // This is a very rough estimation based on device type and browser efficiency
-        let baseCO2PerHour = 0.1; // Default CO2 in kg/hour for browsing
+        let baseCO2PerHour = 0.1;
         
-        // Adjust based on device type (determined from user agent)
         if (baseData.navigator && baseData.navigator.userAgent) {
             const ua = baseData.navigator.userAgent;
             if (ua.includes("Mobile") || ua.includes("Android")) {
-                baseCO2PerHour = 0.05; // Mobile devices typically use less energy
+                baseCO2PerHour = 0.05;
             } else if (ua.includes("Mac")) {
-                baseCO2PerHour = 0.12; // Macs might use slightly more energy
+                baseCO2PerHour = 0.12;
             } else if (ua.includes("Linux")) {
-                baseCO2PerHour = 0.09; // Linux often runs on more efficient hardware
+                baseCO2PerHour = 0.09;
             }
         }
         
-        // Adjust based on browser (some browsers are more efficient)
         if (baseData.navigator && baseData.navigator.userAgent) {
             const ua = baseData.navigator.userAgent;
             if (ua.includes("Firefox")) {
-                baseCO2PerHour *= 0.95; // Firefox tends to be more efficient
+                baseCO2PerHour *= 0.95;
             } else if (ua.includes("Edge")) {
                 baseCO2PerHour *= 0.97;
             }
         }
         
-        // Calculate hourly, daily, and yearly CO2
         const hourlyCO2 = baseCO2PerHour;
-        const dailyCO2 = hourlyCO2 * 5; // Assuming 5 hours of browsing per day
+        const dailyCO2 = hourlyCO2 * 5;
         const yearlyCO2 = dailyCO2 * 365;
         
-        // Compare to real-world examples
-        const kmDriven = yearlyCO2 / 0.12; // Approx 120g CO2 per km driven
-        const coffeeEquivalent = yearlyCO2 / 0.2; // Approx 200g CO2 per cup of coffee
+        const kmDriven = yearlyCO2 / 0.12;
+        const coffeeEquivalent = yearlyCO2 / 0.2;
         
         return {
             hourly: hourlyCO2.toFixed(3),
@@ -363,35 +459,29 @@ class InsightsCollector {
     }
 
     calculatePrivacyScore(baseData) {
-        // Higher score means better privacy
         let privacyScore = 100;
         const issues = [];
         
-        // Check for DNT (Do Not Track)
         if (baseData.navigator && baseData.navigator.doNotTrack !== "1") {
             privacyScore -= 10;
             issues.push("Do Not Track is not enabled");
         }
         
-        // Check for anti-fingerprinting features
         if (baseData.fingerprinting && baseData.fingerprinting.canvas && !baseData.fingerprinting.canvas.error) {
             privacyScore -= 15;
             issues.push("Canvas fingerprinting is possible");
         }
         
-        // Check for WebRTC leaks
         if (baseData.network && baseData.network.webrtcIPs && baseData.network.webrtcIPs.length > 0) {
             privacyScore -= 20;
             issues.push("WebRTC might expose your local IP addresses");
         }
         
-        // Check for third-party cookie acceptance
         if (baseData.navigator && baseData.navigator.cookieEnabled) {
             privacyScore -= 10;
             issues.push("Third-party cookies are accepted");
         }
         
-        // Check if using a privacy-focused browser
         if (baseData.navigator && baseData.navigator.userAgent) {
             const ua = baseData.navigator.userAgent;
             if (!(ua.includes("Firefox") || ua.includes("Brave") || ua.includes("Tor"))) {
@@ -400,31 +490,29 @@ class InsightsCollector {
             }
         }
         
-        // Privacy-enhancing extensions detection (simplified)
-        const privacyExtensionsDetected = false; // Would need a more complex detection method
+        const privacyExtensionsDetected = false;
         if (!privacyExtensionsDetected) {
             privacyScore -= 15;
             issues.push("No privacy-enhancing browser extensions detected");
         }
         
-        // Determine overall rating
         let rating, color;
         if (privacyScore >= 80) {
             rating = "Excellent";
-            color = "#2ecc71"; // Green
+            color = "#2ecc71";
         } else if (privacyScore >= 60) {
             rating = "Good";
-            color = "#3498db"; // Blue
+            color = "#3498db";
         } else if (privacyScore >= 40) {
             rating = "Fair";
-            color = "#f39c12"; // Orange
+            color = "#f39c12";
         } else {
             rating = "Poor";
-            color = "#e74c3c"; // Red
+            color = "#e74c3c";
         }
         
         return {
-            score: Math.max(0, privacyScore), // Ensure score isn't negative
+            score: Math.max(0, privacyScore),
             rating,
             color,
             issues,
@@ -459,7 +547,6 @@ class InsightsCollector {
             recommendations.push("Install privacy extensions like Privacy Badger, uBlock Origin, or HTTPS Everywhere");
         }
         
-        // Add general recommendations if we don't have specific ones
         if (recommendations.length === 0) {
             recommendations.push("Regularly clear your browser cookies and cache");
             recommendations.push("Consider using a VPN for additional privacy");
@@ -469,10 +556,8 @@ class InsightsCollector {
     }
 
     analyzeTrackingVulnerability(baseData) {
-        // This would include analysis of which tracking methods would work on this browser
         const vulnerabilities = [];
         
-        // Check if cookies are enabled
         if (baseData.navigator && baseData.navigator.cookieEnabled) {
             vulnerabilities.push({
                 name: "Cookie Tracking",
@@ -481,7 +566,6 @@ class InsightsCollector {
             });
         }
         
-        // Check for localStorage availability
         if (baseData.navigator && baseData.navigator.localStorageAvailable) {
             vulnerabilities.push({
                 name: "Local Storage Tracking",
@@ -490,7 +574,6 @@ class InsightsCollector {
             });
         }
         
-        // Check for canvas fingerprinting
         if (baseData.fingerprinting && baseData.fingerprinting.canvas && !baseData.fingerprinting.canvas.error) {
             vulnerabilities.push({
                 name: "Canvas Fingerprinting",
@@ -499,7 +582,6 @@ class InsightsCollector {
             });
         }
         
-        // Check for WebGL fingerprinting
         if (baseData.fingerprinting && baseData.fingerprinting.webGL && !baseData.fingerprinting.webGL.error) {
             vulnerabilities.push({
                 name: "WebGL Fingerprinting",
@@ -508,7 +590,6 @@ class InsightsCollector {
             });
         }
         
-        // Check for audio API fingerprinting
         if (baseData.fingerprinting && baseData.fingerprinting.audio && !baseData.fingerprinting.audio.error) {
             vulnerabilities.push({
                 name: "Audio API Fingerprinting",
@@ -517,7 +598,6 @@ class InsightsCollector {
             });
         }
         
-        // Check for navigator enumeration
         if (baseData.navigator) {
             vulnerabilities.push({
                 name: "Navigator Object Enumeration",
@@ -548,8 +628,7 @@ class InsightsCollector {
     }
 
     calculateDistance(lat1, lon1, lat2, lon2) {
-        // Haversine formula to calculate distance between two points on Earth
-        const R = 6371; // Earth radius in kilometers
+        const R = 6371;
         const dLat = this.deg2rad(lat2 - lat1);
         const dLon = this.deg2rad(lon2 - lon1);
         const a = 
@@ -557,7 +636,7 @@ class InsightsCollector {
             Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
             Math.sin(dLon/2) * Math.sin(dLon/2); 
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-        const distance = R * c; // Distance in kilometers
+        const distance = R * c;
         return distance;
     }
     

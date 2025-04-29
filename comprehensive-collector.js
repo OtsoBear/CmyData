@@ -5,55 +5,48 @@ class ComprehensiveCollector {
 
     async collectAll() {
         console.log('ComprehensiveCollector.collectAll() called');
-        
-        // Create a comprehensive data object with all required structures
-        const data = {
-            core: {
-                js: this.collectJavaScriptFeatures(),
-                webComponents: this.collectWebComponentsSupport(),
-                webAssembly: this.collectWebAssemblySupport(),
-                workers: this.collectWorkerSupport(),
-                dom: this.collectDOMFeatures()
-            },
-            hardware: {
-                deviceInfo: this.collectDeviceInfo(),
-                sensors: this.collectSensorsSupport(),
-                hardware: this.collectHardwareInterfaces(),
-                display: this.collectDisplayProperties()
-            },
-            graphics: {
-                graphics: this.collectGraphicsAPIs(),
-                images: this.collectImageFormatSupport(),
-                webgpuDetails: this.collectWebGPUDetails()
-            },
-            input: {
-                input: this.collectInputMethods(),
-                interaction: this.collectInteractionCapabilities(),
-                permissions: this.collectPermissionAPIs()
-            },
-            storage: {
-                storage: this.collectStorageAPIs(),
-                quotas: this.collectStorageQuotas(),
-                quotaEstimate: await this.collectStorageEstimate(),
-                files: this.collectFileSystemSupport()
-            },
-            networking: {
-                connectivity: this.collectNetworkConnectivity(),
-                advanced: this.collectAdvancedNetworking(),
-                background: this.collectBackgroundProcessing(),
-                streams: this.collectStreamsSupport()
-            },
-            security: {
-                security: this.collectSecurityFeatures(),
-                auth: this.collectAuthenticationAPIs(),
-                privacy: this.collectPrivacyFeatures(),
-                origin: this.collectOriginInfo()
-            },
-            experimental: await this.collectExperimental()
-        };
-        
-        return data;
+        // Assuming this method primarily handles 'graphicsInfo'
+        // Note: The main 'graphicsInfo' timing is started/ended in ui-controller.js
+
+        let collectedData = {};
+
+        try {
+            // Add sub-step timing if graphicsInfo has detailed parts
+            // window.startSubTiming('graphicsInfo', 'graphics-webgl-details', 'WebGL Details');
+            collectedData.graphicsDetails = await this.getGraphicsDetails();
+            // window.endSubTiming('graphicsInfo', 'graphics-webgl-details');
+
+            // Add other comprehensive collection parts here
+
+        } catch (error) {
+            console.error("Error in ComprehensiveCollector:", error);
+             // End any running sub-steps for graphicsInfo on error
+             // if (window._timingData?.subSteps?.graphicsInfo?.['graphics-webgl-details'] && !window._timingData.subSteps.graphicsInfo['graphics-webgl-details'].end) window.endSubTiming('graphicsInfo', 'graphics-webgl-details');
+        }
+
+        return { comprehensive: collectedData }; // Example structure
     }
+
+    // --- Placeholder method ---
+    async getGraphicsDetails() {
+        // Simulate complex graphics analysis
+        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 200));
+        console.log("Collected Graphics Details");
+        // Example: Try to get WebGL renderer info
+        let renderer = 'N/A';
+        try {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                }
+            }
+        } catch (e) { /* ignore errors */ }
+        return { webglRenderer: renderer };
+    }
+    // --- End Placeholder method ---
 
     // Core APIs methods
     collectJavaScriptFeatures() {

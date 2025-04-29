@@ -8,6 +8,85 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <style>
+        .error-message {
+            margin-top: 20px;
+            padding: 12px 16px;
+            background-color: #fff1f0;
+            border: 1px solid #ffccc7;
+            border-radius: 4px;
+            color: #cf1322;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .error-message i {
+            font-size: 18px;
+        }
+        
+        /* Loading progress bar styles */
+        .progress-container {
+            margin-top: 24px;
+            width: 100%;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #1890ff;
+            border-radius: 4px;
+            transition: width 0.3s ease-in-out;
+            width: 0%;
+        }
+        
+        .progress-status {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .progress-details {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .heavy-task {
+            background-color: #fffbe6;
+            color: #d48806;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: normal;
+        }
+        
+        #timing-results {
+            margin-top: 24px;
+            padding: 16px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+        
+        .timing-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .timing-table th, .timing-table td {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -16,9 +95,9 @@
             <p>Your digital fingerprint explorer</p>
         </div>
         <div id="header-actions">
-            <button id="export-data" class="secondary-button" disabled>
-                <i class="fas fa-download"></i> Export
-            </button>
+            <a id="export-data" class="secondary-button" href="https://github.com/otsobear/CmyData" target="_blank" rel="noopener noreferrer">
+                <i class="fab fa-github"></i> View on GitHub
+            </a>
         </div>
     </header>
 
@@ -37,6 +116,24 @@
             <div id="loading-indicator" class="hidden">
                 <div class="spinner"></div>
                 <p>Analyzing your digital footprint...</p>
+                <!-- Progress bar will be inserted here by loading-tracker.js -->
+            </div>
+            
+            <div id="timing-results" class="hidden">
+                <h3>Performance Results</h3>
+                <p>Detailed scan timing information:</p>
+                <table class="timing-table" id="timing-table">
+                    <thead>
+                        <tr>
+                            <th>Operation</th>
+                            <th>Time (ms)</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Will be populated with timing data -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -66,10 +163,73 @@
         </div>
     </div>
     
+    <!-- Load compatibility and utility scripts first -->
+    <script src="browser-compatibility.js"></script>
+    <script src="data-validator.js"></script>
+    <script src="loading-tracker.js"></script>
     <script src="main.js"></script>
     <script src="comprehensive-collector.js"></script>
     <script src="enhanced-collector.js"></script>
     <script src="insights-collector.js"></script>
     <script src="ui-controller.js"></script>
+    
+    <script>
+        // Add event listener to show timing results after scan
+        document.addEventListener('DOMContentLoaded', function() {
+            const originalCollectAllData = document.getElementById('collect-all-data').onclick;
+            
+            document.getElementById('collect-all-data').onclick = async function(e) {
+                // Initialize loading tracker
+                if (window.startTiming) window.startTiming('scan', 'Full Scan');
+                if (window.loadingTracker) {
+                    window.loadingTracker.start();
+                }
+                
+                // Call the original handler if it exists
+                if (typeof originalCollectAllData === 'function') {
+                    await originalCollectAllData.call(this, e);
+                }
+                
+                if (window.endTiming) window.endTiming('scan');
+                if (typeof window.showAllTimings === 'function') {
+                    window.showAllTimings();
+                }
+
+                // After scan completes and if we have timing data
+                if (window.scanTimings) {
+                    const timingTable = document.getElementById('timing-table').querySelector('tbody');
+                    timingTable.innerHTML = '';
+                    
+                    // Add rows for each step
+                    Object.entries(window.scanTimings.steps).forEach(([stepId, time]) => {
+                        const step = window.loadingTracker.steps.find(s => s.id === stepId);
+                        if (!step) return;
+                        
+                        const row = document.createElement('tr');
+                        const percent = ((time / window.scanTimings.total) * 100).toFixed(1);
+                        
+                        row.innerHTML = `
+                            <td>${step.name}</td>
+                            <td>${Math.round(time)}</td>
+                            <td>${percent}%</td>
+                        `;
+                        timingTable.appendChild(row);
+                    });
+                    
+                    // Add total row
+                    const totalRow = document.createElement('tr');
+                    totalRow.style.fontWeight = 'bold';
+                    totalRow.innerHTML = `
+                        <td>Total</td>
+                        <td>${Math.round(window.scanTimings.total)}</td>
+                        <td>100%</td>
+                    `;
+                    timingTable.appendChild(totalRow);
+                    
+                    document.getElementById('timing-results').classList.remove('hidden');
+                }
+            };
+        });
+    </script>
 </body>
 </html>

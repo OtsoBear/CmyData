@@ -192,15 +192,6 @@ class UIController {
             console.error('Could not find collect-all-data button!');
         }
         
-        // Export data button
-        const exportButton = document.getElementById('export-data');
-        if (exportButton) {
-            exportButton.addEventListener('click', () => {
-                console.log('Export button clicked');
-                this.exportData();
-            });
-        }
-        
         console.log('Event listeners set up complete');
         
         // Permission modal buttons - Add null checks
@@ -302,13 +293,6 @@ class UIController {
             console.log('Generating scrollable view...');
             this.generateScrollableDataView();
             console.log('Scrollable view generated');
-            
-            // Enable export button
-            const exportDataBtn = document.getElementById('export-data');
-            if (exportDataBtn) {
-                exportDataBtn.disabled = false;
-                console.log('Export button enabled');
-            }
         } catch (error) {
             console.error('Error collecting data:', error);
             console.error('Error stack:', error.stack);
@@ -343,9 +327,6 @@ class UIController {
             <div class="button-container">
                 <button id="collect-all-data" class="primary-button" type="button">
                     <i class="fas fa-satellite-dish"></i> Restart Scan
-                </button>
-                <button id="export-all-data" class="secondary-button" type="button">
-                    <i class="fas fa-download"></i> Export All Data
                 </button>
             </div>
         `;
@@ -528,13 +509,6 @@ class UIController {
             if (collectButton) {
                 collectButton.addEventListener('click', () => {
                     this.collectAllData();
-                });
-            }
-            
-            const exportButton = document.getElementById('export-all-data');
-            if (exportButton) {
-                exportButton.addEventListener('click', () => {
-                    this.exportData();
                 });
             }
             
@@ -1250,7 +1224,10 @@ class UIController {
     }
 
     updateDataDisplay() {
-        if (!this.collectedData) return;
+        if (!this.collectedData) {
+            // Add your logic here
+        }
+return;
         
         // Update each section with its data
         // First, update basic data sections
@@ -1516,7 +1493,7 @@ class UIController {
         html += '<div class="data-card"><h4>JavaScript Features</h4>';
         if (data.js && typeof data.js === 'object') {
             Object.entries(data.js).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">JavaScript features data not available</p>';
@@ -1527,7 +1504,7 @@ class UIController {
         html += '<div class="data-card"><h4>Web Components</h4>';
         if (data.webComponents && typeof data.webComponents === 'object') {
             Object.entries(data.webComponents).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Web Components data not available</p>';
@@ -1538,7 +1515,7 @@ class UIController {
         html += '<div class="data-card"><h4>WebAssembly</h4>';
         if (data.webAssembly && typeof data.webAssembly === 'object') {
             Object.entries(data.webAssembly).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">WebAssembly data not available</p>';
@@ -1552,10 +1529,10 @@ class UIController {
                 if (typeof value === 'object') {
                     html += `<h5>${this.formatPropertyName(key)}</h5>`;
                     Object.entries(value).forEach(([subKey, subValue]) => {
-                        html += this.createDataItem(this.formatPropertyName(subKey), this.formatBooleanOrValue(subValue));
+                        html += this.createDataItem(this.formatPropertyName(subKey), subValue);
                     });
                 } else {
-                    html += this.createDataItem(this.formatPropertyName(key), this.formatBooleanOrValue(value));
+                    html += this.createDataItem(this.formatPropertyName(key), value);
                 }
             }
         } else {
@@ -1567,7 +1544,7 @@ class UIController {
         html += '<div class="data-card"><h4>DOM Features</h4>';
         if (data.dom && typeof data.dom === 'object') {
             Object.entries(data.dom).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             }); 
         } else {
             html += '<p class="unavailable">DOM features data not available</p>';
@@ -1599,7 +1576,7 @@ class UIController {
         html += '<div class="data-card"><h4>Sensors</h4>';
         if (data.sensors && typeof data.sensors === 'object') {
             Object.entries(data.sensors).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Sensors data not available</p>';
@@ -1619,7 +1596,7 @@ class UIController {
         html += '<div class="data-card"><h4>Graphics APIs</h4>';
         if (data.graphics && typeof data.graphics === 'object') {
             Object.entries(data.graphics).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Graphics APIs data not available</p>';
@@ -1630,7 +1607,7 @@ class UIController {
         html += '<div class="data-card"><h4>Image Format Support</h4>';
         if (data.images && typeof data.images === 'object') {
             Object.entries(data.images).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Image format support data not available</p>';
@@ -1674,7 +1651,7 @@ class UIController {
         html += '<div class="data-card"><h4>Input Methods</h4>';
         if (data.input && typeof data.input === 'object') {
             Object.entries(data.input).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Input methods data not available</p>';
@@ -1685,7 +1662,7 @@ class UIController {
         html += '<div class="data-card"><h4>Interaction Capabilities</h4>';
         if (data.interaction && typeof data.interaction === 'object') {
             Object.entries(data.interaction).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Interaction capabilities data not available</p>';
@@ -1696,7 +1673,7 @@ class UIController {
         html += '<div class="data-card"><h4>Permission APIs</h4>';
         if (data.permissions && typeof data.permissions === 'object') {
             Object.entries(data.permissions).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Permission APIs data not available</p>';
@@ -1715,7 +1692,7 @@ class UIController {
         html += '<div class="data-card"><h4>Storage APIs</h4>';
         if (data.storage && typeof data.storage === 'object') {
             Object.entries(data.storage).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Storage APIs data not available</p>';
@@ -1726,7 +1703,7 @@ class UIController {
         html += '<div class="data-card"><h4>Storage Quotas</h4>';
         if (data.quotas && typeof data.quotas === 'object') {
             Object.entries(data.quotas).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Storage quotas data not available</p>';
@@ -1749,7 +1726,7 @@ class UIController {
         html += '<div class="data-card"><h4>File System Access</h4>';
         if (data.files && typeof data.files === 'object') {
             Object.entries(data.files).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">File system access data not available</p>';
@@ -1768,7 +1745,7 @@ class UIController {
         html += '<div class="data-card"><h4>Network Connectivity</h4>';
         if (data.connectivity && typeof data.connectivity === 'object') {
             Object.entries(data.connectivity).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Network connectivity data not available</p>';
@@ -1779,7 +1756,7 @@ class UIController {
         html += '<div class="data-card"><h4>Advanced Networking</h4>';
         if (data.advanced && typeof data.advanced === 'object') {
             Object.entries(data.advanced).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Advanced networking data not available</p>';
@@ -1790,7 +1767,7 @@ class UIController {
         html += '<div class="data-card"><h4>Background Processing</h4>';
         if (data.background && typeof data.background === 'object') {
             Object.entries(data.background).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Background processing data not available</p>';
@@ -1801,7 +1778,7 @@ class UIController {
         html += '<div class="data-card"><h4>Streams API</h4>';
         if (data.streams && typeof data.streams === 'object') {
             Object.entries(data.streams).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Streams API data not available</p>';
@@ -1823,10 +1800,10 @@ class UIController {
                 if (typeof value === 'object') {
                     html += `<h5>${this.formatPropertyName(name)}</h5>`;
                     Object.entries(value).forEach(([subName, subValue]) => {
-                        html += this.createDataItem(this.formatPropertyName(subName), this.formatBooleanOrValue(subValue));
+                        html += this.createDataItem(this.formatPropertyName(subName), subValue);
                     });
                 } else {
-                    html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                    html += this.createDataItem(this.formatPropertyName(name), value);
                 }
             });
         } else {
@@ -1838,7 +1815,7 @@ class UIController {
         html += '<div class="data-card"><h4>Authentication APIs</h4>';
         if (data.auth && typeof data.auth === 'object') {
             Object.entries(data.auth).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Authentication APIs data not available</p>';
@@ -1849,7 +1826,7 @@ class UIController {
         html += '<div class="data-card"><h4>Privacy Features</h4>';
         if (data.privacy && typeof data.privacy === 'object') {
             Object.entries(data.privacy).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Privacy features data not available</p>';
@@ -1880,7 +1857,7 @@ class UIController {
         html += '<div class="data-card"><h4>Emerging APIs</h4>';
         if (data.emerging && typeof data.emerging === 'object') {
             Object.entries(data.emerging).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Emerging APIs data not available</p>';
@@ -1891,7 +1868,7 @@ class UIController {
         html += '<div class="data-card"><h4>Proposed Standards</h4>';
         if (data.proposals && typeof data.proposals === 'object') {
             Object.entries(data.proposals).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Proposed standards data not available</p>';
@@ -1902,7 +1879,7 @@ class UIController {
         html += '<div class="data-card"><h4>Progressive Web App Features</h4>';
         if (data.pwa && typeof data.pwa === 'object') {
             Object.entries(data.pwa).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Progressive Web App features data not available</p>';
@@ -1913,7 +1890,7 @@ class UIController {
         html += '<div class="data-card"><h4>Foldable Device APIs</h4>';
         if (data.foldable && typeof data.foldable === 'object') {
             Object.entries(data.foldable).forEach(([name, value]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatBooleanOrValue(value));
+                html += this.createDataItem(this.formatPropertyName(name), value);
             });
         } else {
             html += '<p class="unavailable">Foldable device APIs data not available</p>';
@@ -1955,7 +1932,7 @@ class UIController {
     renderWebRTCData(container, data) {
         let html = '<div class="data-card">';
         html += `<h4>WebRTC Leak Test</h4>`;
-        html += this.createDataItem('WebRTC Supported', data.supported ? 'Yes' : 'No');
+        html += this.createDataItem('WebRTC Supported', data.supported);
         
         if (data.supported) {
             if (data.leakDetected) {
@@ -1971,7 +1948,7 @@ class UIController {
                     }
                 }
             } else {
-                html += `<p class="success">No WebRTC leaks detected</p>`;
+                html += this.createDataItem('Leak Status', 'No WebRTC leaks detected');
             }
         }
         
@@ -1986,9 +1963,7 @@ class UIController {
         html += '<div class="data-card"><h4>Video Codecs</h4>';
         if (data.video && data.video.length) {
             data.video.forEach(codec => {
-                html += this.createDataItem(codec.name, codec.supported ? 
-                    `<span class="success">${codec.status}</span>` : 
-                    `<span class="unavailable">Not supported</span>`);
+                html += this.createDataItem(codec.name, codec.supported ? codec.status : 'Not supported');
             });
         } else {
             html += '<p class="unavailable">Video codec information not available</p>';
@@ -1999,9 +1974,7 @@ class UIController {
         html += '<div class="data-card"><h4>Audio Codecs</h4>';
         if (data.audio && data.audio.length) {
             data.audio.forEach(codec => {
-                html += this.createDataItem(codec.name, codec.supported ? 
-                    `<span class="success">${codec.status}</span>` : 
-                    `<span class="unavailable">Not supported</span>`);
+                html += this.createDataItem(codec.name, codec.supported ? codec.status : 'Not supported');
             });
         } else {
             html += '<p class="unavailable">Audio codec information not available</p>';
@@ -2011,15 +1984,11 @@ class UIController {
         // Media Source Extensions
         if (data.mediaSource) {
             html += '<div class="data-card"><h4>Media Source Extensions</h4>';
-            html += this.createDataItem('MSE Support', data.mediaSource.supported ? 
-                '<span class="success">Supported</span>' : 
-                '<span class="unavailable">Not supported</span>');
+            html += this.createDataItem('MSE Support', data.mediaSource.supported);
                 
             if (data.mediaSource.supported && data.mediaSource.codecs.length) {
                 data.mediaSource.codecs.forEach(codec => {
-                    html += this.createDataItem(codec.name, codec.supported ? 
-                        '<span class="success">Supported</span>' : 
-                        '<span class="unavailable">Not supported</span>');
+                    html += this.createDataItem(codec.name, codec.supported);
                 });
             }
             html += '</div>';
@@ -2041,11 +2010,11 @@ class UIController {
     
     formatDrmSupport(support) {
         if (support === true) {
-            return '<span class="success">Supported</span>';
+            return 'Supported';
         } else if (support === false) {
-            return '<span class="unavailable">Not supported</span>';
+            return 'Not supported';
         } else {
-            return '<span class="unavailable">' + support + '</span>';
+            return support;
         }
     }
 
@@ -2055,62 +2024,58 @@ class UIController {
         // Progressive Web Apps
         if (data.pwa) {
             html += '<div class="data-card"><h4>Progressive Web App Features</h4>';
-            html += this.createDataItem('Service Workers', this.formatBooleanSupport(data.pwa.serviceWorkerSupport));
-            html += this.createDataItem('Web App Manifest', this.formatBooleanSupport(data.pwa.manifestSupport));
-            html += this.createDataItem('Installable', this.formatBooleanSupport(data.pwa.installable));
+            html += this.createDataItem('Service Workers', data.pwa.serviceWorkerSupport);
+            html += this.createDataItem('Web App Manifest', data.pwa.manifestSupport);
+            html += this.createDataItem('Installable', data.pwa.installable);
             html += '</div>';
         }
         
         // Hardware APIs
         html += '<div class="data-card"><h4>Hardware APIs</h4>';
         if (data.bluetooth) {
-            html += this.createDataItem('Web Bluetooth', this.formatBooleanSupport(data.bluetooth.available));
+            html += this.createDataItem('Web Bluetooth', data.bluetooth.available);
         }
         if (data.usb) {
-            html += this.createDataItem('WebUSB', this.formatBooleanSupport(data.usb.available));
+            html += this.createDataItem('WebUSB', data.usb.available);
         }
         if (data.serial) {
-            html += this.createDataItem('Web Serial', this.formatBooleanSupport(data.serial.available));
+            html += this.createDataItem('Web Serial', data.serial.available);
         }
         html += '</div>';
         
         // Sharing & Communication
         html += '<div class="data-card"><h4>Sharing & Communication</h4>';
         if (data.webShare) {
-            html += this.createDataItem('Web Share API', this.formatBooleanSupport(data.webShare.available));
-            html += this.createDataItem('Share Files', this.formatBooleanSupport(data.webShare.files));
+            html += this.createDataItem('Web Share API', data.webShare.available);
+            html += this.createDataItem('Share Files', data.webShare.files);
         }
         if (data.webNFC) {
-            html += this.createDataItem('Web NFC', this.formatBooleanSupport(data.webNFC.available));
+            html += this.createDataItem('Web NFC', data.webNFC.available);
         }
         html += '</div>';
         
         // Extended Reality
         if (data.webXR) {
             html += '<div class="data-card"><h4>Extended Reality</h4>';
-            html += this.createDataItem('WebXR Device API', this.formatBooleanSupport(data.webXR.available));
-            html += this.createDataItem('VR Support', data.webXR.vrSupport === true ? 
-                '<span class="success">Supported</span>' : 
-                '<span class="unavailable">Not supported</span>');
-            html += this.createDataItem('AR Support', data.webXR.arSupport === true ? 
-                '<span class="success">Supported</span>' : 
-                '<span class="unavailable">Not supported</span>');
+            html += this.createDataItem('WebXR Device API', data.webXR.available);
+            html += this.createDataItem('VR Support', data.webXR.vrSupport);
+            html += this.createDataItem('AR Support', data.webXR.arSupport);
             html += '</div>';
         }
         
         // Other Emerging APIs
         html += '<div class="data-card"><h4>Other Emerging APIs</h4>';
         if (data.webAuthn) {
-            html += this.createDataItem('WebAuthn', this.formatBooleanSupport(data.webAuthn.available));
+            html += this.createDataItem('WebAuthn', data.webAuthn.available);
         }
         if (data.speechRecognition) {
-            html += this.createDataItem('Speech Recognition', this.formatBooleanSupport(data.speechRecognition.available));
+            html += this.createDataItem('Speech Recognition', data.speechRecognition.available);
         }
         if (data.speechSynthesis) {
-            html += this.createDataItem('Speech Synthesis', this.formatBooleanSupport(data.speechSynthesis.available));
+            html += this.createDataItem('Speech Synthesis', data.speechSynthesis.available);
         }
         if (data.offscreenCanvas) {
-            html += this.createDataItem('Offscreen Canvas', this.formatBooleanSupport(data.offscreenCanvas.available));
+            html += this.createDataItem('Offscreen Canvas', data.offscreenCanvas.available);
         }
         html += '</div>';
         
@@ -2120,9 +2085,9 @@ class UIController {
     
     formatBooleanSupport(value) {
         if (value === true) {
-            return '<span class="success">Supported</span>';
+            return 'Supported';
         } else {
-            return '<span class="unavailable">Not supported</span>';
+            return 'Not supported';
         }
     }
 
@@ -2146,7 +2111,7 @@ class UIController {
                 html += this.createDataItem('Max Texture Size', data.webgl.maxTextureSize);
                 html += this.createDataItem('Extensions', data.webgl.extensionsCount);
             } else {
-                html += '<p class="unavailable">WebGL not available</p>';
+                html += this.createDataItem('WebGL Status', 'Not available');
             }
             html += '</div>';
         }
@@ -2168,8 +2133,7 @@ class UIController {
         if (data.hardwareAcceleration) {
             html += '<div class="data-card"><h4>Hardware Acceleration</h4>';
             if (!data.hardwareAcceleration.error) {
-                html += this.createDataItem('Likely Accelerated', data.hardwareAcceleration.likely ? 
-                    '<span class="success">Yes</span>' : '<span class="unavailable">No</span>');
+                html += this.createDataItem('Likely Accelerated', data.hardwareAcceleration.likely);
                 html += this.createDataItem('Certainty', data.hardwareAcceleration.certainty);
             } else {
                 html += `<p class="unavailable">${data.hardwareAcceleration.error}</p>`;
@@ -2194,9 +2158,7 @@ class UIController {
         
         // HTTPS status
         html += '<div class="data-card"><h4>Connection Security</h4>';
-        html += this.createDataItem('HTTPS', data.https ? 
-            '<span class="success">Enabled</span>' : 
-            '<span class="warning">Not enabled</span>');
+        html += this.createDataItem('HTTPS', data.https ? 'Enabled' : 'Not enabled');
             
         if (data.modernTLSFeatures) {
             html += `<p>${data.modernTLSFeatures.note}</p>`;
@@ -2370,11 +2332,10 @@ class UIController {
             html += '</ul>';
         }
         
-        html += '</div>';
-        container.innerHTML = html;
-    }
+    html += '</div>';
+}
 
-    renderFingerprintUniquenessData(container, data) {
+renderFingerprintUniquenessData(container, data) {
         let html = '<div class="data-card">';
         html += '<h4>Browser Fingerprint Uniqueness</h4>';
         
@@ -2453,28 +2414,9 @@ class UIController {
         
         html += '</div>';
         container.innerHTML = html;
-        
-        // Add click event listeners after rendering
-        setTimeout(() => {
-            // Add listener for score display
-            const scoreDisplay = document.getElementById('fingerprint-score-display');
-            const detailsSection = document.getElementById('fingerprint-details');
-            if (scoreDisplay && detailsSection) {
-                scoreDisplay.addEventListener('click', () => {
-                    detailsSection.classList.toggle('hidden');
-                });
-            }
-            
-            // Add listener for elements analyzed
-            const elementsDisplay = document.getElementById('fingerprint-elements');
-            const elementsDetails = document.getElementById('fingerprint-elements-details');
-            if (elementsDisplay && elementsDetails) {
-                elementsDisplay.addEventListener('click', () => {
-                    elementsDetails.classList.toggle('hidden');
-                });
-            }
-        }, 0);
     }
+
+   
 
     renderCarbonFootprintData(container, data) {
         let html = '<div class="data-card">';
@@ -2989,8 +2931,8 @@ class UIController {
         
         html += '</div>'; // Close grid
         container.innerHTML = html;
-    }
-
+    };
+    
     formatPermissionStatus(status) {
         if (status === 'granted') {
             return '<span class="success">Granted</span>';
@@ -3195,29 +3137,29 @@ class UIController {
         return '#2ecc71';
     }
 
-    _guessDeviceType(data) {
-        // Simple heuristic to guess device type
-        const userAgent = data.navigator?.userAgent || '';
-        const platform = data.navigator?.platform || '';
-        const touch = data.interaction?.pointer?.maxTouchPoints > 0;
-        const screenWidth = data.screen?.screen?.width || 0;
-        
-        if (/mobile|android|iphone|ipad|ipod/i.test(userAgent.toLowerCase())) {
-            if (screenWidth >= 768) {
-                return 'Tablet';
+        _guessDeviceType(data) {
+            // Simple heuristic to guess device type
+            const userAgent = data.navigator?.userAgent || '';
+            const platform = data.navigator?.platform || '';
+            const touch = data.interaction?.pointer?.maxTouchPoints > 0;
+            const screenWidth = data.screen?.screen?.width || 0;
+    
+            if (/mobile|android|iphone|ipad|ipod/i.test(userAgent.toLowerCase())) {
+                if (screenWidth >= 768) {
+                    return 'Tablet';
+                }
+                return 'Mobile Phone';
+            } else if (/macintosh|mac os x/i.test(userAgent.toLowerCase())) {
+                return 'Mac Computer';
+            } else if (/windows|win32|win64/i.test(userAgent.toLowerCase())) {
+                return 'Windows Computer';
+            } else if (/linux/i.test(userAgent.toLowerCase()) || /linux/i.test(platform.toLowerCase())) {
+                return 'Linux Computer';
             }
-            return 'Mobile Phone';
-        } else if (/macintosh|mac os x/i.test(userAgent.toLowerCase())) {
-            return 'Mac Computer';
-        } else if (/windows|win32|win64/i.test(userAgent.toLowerCase())) {
-            return 'Windows Computer';
-        } else if (/linux/i.test(userAgent.toLowerCase()) || /linux/i.test(platform.toLowerCase())) {
-            return 'Linux Computer';
+    
+            return 'Desktop Computer';
         }
-        
-        return 'Desktop Computer';
     }
-}
 
 // Initialize UI controller when the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {

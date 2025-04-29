@@ -250,19 +250,24 @@ main {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.75rem;
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
     background-color: rgba(13, 18, 30, 0.5);
     border-radius: 8px;
-    transition: background-color 0.2s ease;
+    border: 1.5px solid var(--border-color);
+    transition: background-color 0.2s, border 0.2s;
+    font-size: 1.02em;
+    min-height: 2.5em;
 }
 
 .data-item:hover {
     background-color: rgba(29, 40, 58, 0.8);
+    border-color: var(--primary-color);
 }
 
 .data-name {
-    font-weight: 500;
+    font-weight: 600;
     color: var(--text-secondary);
+    letter-spacing: 0.01em;
 }
 
 .data-value {
@@ -271,6 +276,10 @@ main {
     text-align: right;
     word-break: break-word;
     padding-left: 1rem;
+    font-size: 1em;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
 }
 
 /* Status indicators */
@@ -298,6 +307,53 @@ main {
     color: var(--text-secondary);
     font-style: italic;
     opacity: 0.7;
+}
+
+/* Badge styles for availability/support status */
+.status-badge {
+    display: inline-block;
+    padding: 0.25em 0.85em;
+    border-radius: 1em;
+    font-size: 0.95em;
+    font-weight: 600;
+    margin-left: 0.5em;
+    margin-right: 0.5em;
+    vertical-align: middle;
+    border: 2px solid transparent;
+    letter-spacing: 0.02em;
+    transition: background 0.2s, color 0.2s, border 0.2s;
+}
+
+.status-available,
+.status-supported,
+.status-yes {
+    background: linear-gradient(90deg, #05d77e 60%, #00c6ff 100%);
+    color: #fff;
+    border-color: #05d77e;
+    box-shadow: 0 0 8px rgba(5, 215, 126, 0.15);
+}
+
+.status-not-available,
+.status-not-supported,
+.status-no {
+    background: linear-gradient(90deg, #ff2a6d 60%, #8a2be2 100%);
+    color: #fff;
+    border-color: #ff2a6d;
+    box-shadow: 0 0 8px rgba(255, 42, 109, 0.15);
+}
+
+.status-warning {
+    background: linear-gradient(90deg, #ff9900 60%, #ff6b00 100%);
+    color: #fff;
+    border-color: #ff9900;
+    box-shadow: 0 0 8px rgba(255, 153, 0, 0.15);
+}
+
+.status-neutral {
+    background: linear-gradient(90deg, #94a3b8 60%, #e2e8f0 100%);
+    color: #222;
+    border-color: #94a3b8;
+    box-shadow: 0 0 8px rgba(148, 163, 184, 0.10);
 }
 
 /* Dashboard cards */
@@ -493,14 +549,23 @@ button {
 }
 
 .secondary-button {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: var(--text-bright);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1890ff;
+    background-color: #f0f5ff;
+    border: 1px solid #91d5ff;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .secondary-button:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-    transform: translateY(-3px);
+    background-color: #e6f7ff;
+    color: #096dd9;
 }
 
 button:disabled {
