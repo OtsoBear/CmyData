@@ -1,647 +1,734 @@
+/**
+ * Insights Collector
+ * Provides additional insights and analysis based on collected browser data
+ */
 class InsightsCollector {
     constructor() {
-        this.insights = {};
+        console.log('InsightsCollector initialized');
+        
+        // Safely wrap collection methods to prevent errors from breaking the UI
+        if (window.DataValidator && window.DataValidator.safeDataCollection) {
+            this.collectAllInsights = window.DataValidator.safeDataCollection(this.collectAllInsights.bind(this));
+        }
     }
 
-    async collectAllInsights(baseData = {}) {
-        const insights = {};
+    /**
+     * Collects all insights based on provided browser data
+     * @param {Object} collectedData Data from basic and enhanced collectors
+     * @returns {Promise<Object>} Insights object
+     */
+    async collectAllInsights(collectedData) {
+        console.log('Collecting insights...');
+        
+        if (window.startTiming) window.startTiming('insights', 'Insights Analysis');
         
         try {
-            // Only proceed with location-based insights if we have geolocation data
-            if (baseData.geolocation && !baseData.geolocation.error) {
-                const coords = {
-                    latitude: baseData.geolocation.latitude,
-                    longitude: baseData.geolocation.longitude
-                };
-                
-                // Collect all location-based insights
-                insights.iss = await this.getISSDistance(coords);
-                insights.weather = await this.getLocalWeather(coords);
-                insights.astronomy = await this.getAstronomyData(coords);
-                insights.timezones = await this.getTimezoneInfo(coords);
-            } else {
-                insights.locationBased = { 
-                    error: "Location data required for these insights. Enable geolocation to see more." 
-                };
+            // Validate input data
+            if (!collectedData) {
+                throw new Error('No data provided to insights collector');
             }
-
-            // Non-location based insights
-            insights.internetHealth = await this.getInternetHealthData();
-            insights.fingerprint = this.calculateFingerprintUniqueness(baseData);
-            insights.carbonFootprint = this.estimateCarbonFootprint(baseData);
-            insights.privacyScore = this.calculatePrivacyScore(baseData);
-            insights.trackingAnalysis = this.analyzeTrackingVulnerability(baseData);
             
-        } catch (error) {
-            console.error("Error collecting insights:", error);
-            insights.error = "Failed to gather some insights. See console for details.";
-        }
-        
-        this.insights = insights;
-        return insights;
-    }
-
-    async collectAll() {
-        let collectedData = {};
-
-        try {
-            // Network Info (Assuming ui-controller started 'networkInfo')
-            collectedData.network = await this.getNetworkInsights();
-
-            // Storage Info
-            window.startTiming('storageInfo');
-            collectedData.storage = await this.getStorageInsights();
-            window.endTiming('storageInfo');
-
-            // Localization Info
-            window.startTiming('localizationInfo');
-            collectedData.localization = await this.getLocalizationInsights();
-            window.endTiming('localizationInfo');
-
-            // Fingerprinting
-            window.startTiming('fingerprinting');
-            collectedData.fingerprint = await this.calculateFingerprintInsights();
-            window.endTiming('fingerprinting');
-
-        } catch (error) {
-            console.error("Error in InsightsCollector:", error);
-            if (window.loadingTracker.stepStartTimes['storageInfo']) window.endTiming('storageInfo');
-            if (window.loadingTracker.stepStartTimes['localizationInfo']) window.endTiming('localizationInfo');
-            if (window.loadingTracker.stepStartTimes['fingerprinting']) window.endTiming('fingerprinting');
-            this.cleanupFingerprintSubTimingsOnError();
-        }
-
-        return { insights: collectedData };
-    }
-
-    async calculateFingerprintInsights() {
-        let fingerprintData = {};
-
-        try {
-            window.startSubTiming('fingerprinting', 'fingerprinting-canvas', 'Canvas Fingerprinting');
-            fingerprintData.canvas = await this.getCanvasFingerprint();
-            window.endSubTiming('fingerprinting', 'fingerprinting-canvas');
-
-            window.startSubTiming('fingerprinting', 'fingerprinting-webgl', 'WebGL Analysis');
-            fingerprintData.webgl = await this.getWebGLFingerprint();
-            window.endSubTiming('fingerprinting', 'fingerprinting-webgl');
-
-            window.startSubTiming('fingerprinting', 'fingerprinting-fonts', 'Font Enumeration');
-            fingerprintData.fonts = await this.getFontsList();
-            window.endSubTiming('fingerprinting', 'fingerprinting-fonts');
-
-            window.startSubTiming('fingerprinting', 'fingerprinting-audio', 'Audio Context Analysis');
-            fingerprintData.audio = await this.getAudioFingerprint();
-            window.endSubTiming('fingerprinting', 'fingerprinting-audio');
-
-            window.startSubTiming('fingerprinting', 'fingerprinting-browser', 'Browser Feature Detection');
-            fingerprintData.browserFeatures = await this.getBrowserFeatures();
-            window.endSubTiming('fingerprinting', 'fingerprinting-browser');
-
-        } catch (error) {
-            console.error("Error during fingerprint calculation:", error);
-            this.cleanupFingerprintSubTimingsOnError();
-            throw error;
-        }
-
-        return fingerprintData;
-    }
-
-    cleanupFingerprintSubTimingsOnError() {
-        const parentId = 'fingerprinting';
-        const subSteps = ['fingerprinting-canvas', 'fingerprinting-webgl', 'fingerprinting-fonts', 'fingerprinting-audio', 'fingerprinting-browser'];
-        subSteps.forEach(subId => {
-            if (window._timingData?.subSteps?.[parentId]?.[subId] && !window._timingData.subSteps[parentId][subId].end) {
-                window.endSubTiming(parentId, subId);
+            // Extract geolocation for location-based insights
+            let coords = null;
+            if (collectedData.geolocation && 
+                collectedData.geolocation.latitude && 
+                collectedData.geolocation.longitude &&
+                !collectedData.geolocation.error) {
+                coords = {
+                    latitude: collectedData.geolocation.latitude,
+                    longitude: collectedData.geolocation.longitude
+                };
+            } else if (collectedData.network?.ip?.geolocation) {
+                // Fall back to IP-based geolocation if available
+                const geo = collectedData.network.ip.geolocation;
+                if (geo.latitude && geo.longitude) {
+                    coords = {
+                        latitude: geo.latitude,
+                        longitude: geo.longitude
+                    };
+                }
             }
-        });
+            
+            // Collect insights in parallel to improve performance
+            const [issData, weatherData, astronomyData, privacyScore, fingerprintScore, carbonFootprint] = await Promise.all([
+                this.getISSDistance(coords),
+                this.getWeatherData(coords),
+                this.getAstronomyData(coords),
+                this.analyzePrivacy(collectedData),
+                this.analyzeFingerprintUniqueness(collectedData),
+                this.estimateCarbonFootprint(collectedData)
+            ]);
+            
+            const insights = {
+                iss: issData,
+                weather: weatherData,
+                astronomy: astronomyData,
+                privacyScore,
+                fingerprint: fingerprintScore,
+                carbonFootprint
+            };
+            
+            console.log('Insights collection complete');
+            
+            if (window.endTiming) window.endTiming('insights');
+            return insights;
+        } catch (error) {
+            console.error('Error in insights collection:', error);
+            
+            if (window.endTiming) window.endTiming('insights');
+            return {
+                error: 'Failed to collect insights: ' + error.message
+            };
+        }
     }
 
-    async getNetworkInsights() {
-        await new Promise(resolve => setTimeout(resolve, 80 + Math.random() * 40));
-        console.log("Collected Network Insights");
-        return { connectionType: navigator.connection?.effectiveType || 'N/A' };
-    }
-
-    async getStorageInsights() {
-        await new Promise(resolve => setTimeout(resolve, 60 + Math.random() * 30));
-        console.log("Collected Storage Insights");
-        try {
-            const storageEstimate = await navigator.storage?.estimate();
-            return { quota: storageEstimate?.quota, usage: storageEstimate?.usage };
-        } catch { return { error: 'Could not estimate storage' }; }
-    }
-
-    async getLocalizationInsights() {
-        await new Promise(resolve => setTimeout(resolve, 40 + Math.random() * 20));
-        console.log("Collected Localization Insights");
-        return { language: navigator.language, languages: navigator.languages };
-    }
-
-    async getCanvasFingerprint() {
-        await new Promise(resolve => setTimeout(resolve, 150 + Math.random() * 50));
-        console.log("Collected Canvas Fingerprint");
-        return 'canvas-hash-' + Math.random();
-    }
-
-    async getWebGLFingerprint() {
-        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 60));
-        console.log("Collected WebGL Fingerprint");
-        return 'webgl-hash-' + Math.random();
-    }
-
-    async getFontsList() {
-        await new Promise(resolve => setTimeout(resolve, 180 + Math.random() * 50));
-        console.log("Collected Fonts List");
-        return ['Arial', 'Times New Roman', 'Verdana', 'RandomFont-' + Math.random()];
-    }
-
-    async getAudioFingerprint() {
-        await new Promise(resolve => setTimeout(resolve, 120 + Math.random() * 40));
-        console.log("Collected Audio Fingerprint");
-        return 'audio-hash-' + Math.random();
-    }
-
-    async getBrowserFeatures() {
-        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 30));
-        console.log("Collected Browser Features");
-        return { cookiesEnabled: navigator.cookieEnabled, doNotTrack: navigator.doNotTrack };
-    }
-
+    /**
+     * Calculates distance to the International Space Station
+     * @param {Object|null} coords User coordinates
+     * @returns {Promise<Object>} ISS distance data
+     */
     async getISSDistance(coords) {
+        if (window.startTiming) window.startTiming('insights-iss');
+        
         try {
-            const response = await fetch('http://api.open-notify.org/iss-now.json');
-            const data = await response.json();
-            
-            if (data.message === "success") {
-                const issPosition = {
-                    latitude: parseFloat(data.iss_position.latitude),
-                    longitude: parseFloat(data.iss_position.longitude)
-                };
-                
-                const distance = this.calculateDistance(
-                    coords.latitude, coords.longitude,
-                    issPosition.latitude, issPosition.longitude
-                );
-                
+            if (!coords) {
                 return {
-                    issPosition,
-                    userPosition: coords,
-                    distance: {
-                        km: Math.round(distance),
-                        miles: Math.round(distance * 0.621371)
-                    },
-                    timestamp: new Date(data.timestamp * 1000).toISOString()
+                    error: 'Geolocation data required to calculate distance to ISS'
                 };
-            } else {
-                throw new Error("ISS API returned an error");
             }
-        } catch (error) {
-            console.error("Error fetching ISS data:", error);
-            return { error: "Could not fetch International Space Station data" };
-        }
-    }
-
-    async getLocalWeather(coords) {
-        try {
-            const apiKey = 'demo_key';
-            const response = await fetch(
-                `https://api.openweathermap.org/data/2.5/weather?lat=${coords.latitude}&lon=${coords.longitude}&appid=${apiKey}&units=metric`
+            
+            // Fetch the current ISS position
+            const response = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+            
+            if (!response.ok) {
+                throw new Error(`API returned ${response.status}: ${response.statusText}`);
+            }
+            
+            const issData = await response.json();
+            
+            // Calculate distance between user and ISS
+            const distance = this.calculateDistance(
+                coords.latitude, coords.longitude,
+                issData.latitude, issData.longitude
             );
             
-            if (!response.ok) {
-                console.warn('Weather API returned error, using mock data');
-                return this.getMockWeatherData(coords);
-            }
-            
-            const data = await response.json();
-            
-            return {
-                temperature: {
-                    celsius: Math.round(data.main.temp),
-                    fahrenheit: Math.round(data.main.temp * 9/5 + 32)
+            const result = {
+                issPosition: {
+                    latitude: issData.latitude,
+                    longitude: issData.longitude,
+                    altitude: issData.altitude
                 },
-                conditions: data.weather[0].description,
-                humidity: data.main.humidity,
-                windSpeed: data.wind.speed,
-                location: data.name,
-                country: data.sys.country
+                distance: {
+                    km: Math.round(distance),
+                    miles: Math.round(distance * 0.621371)
+                },
+                timestamp: issData.timestamp * 1000 // Convert to milliseconds
             };
+            
+            if (window.endTiming) window.endTiming('insights-iss');
+            return result;
         } catch (error) {
-            console.error("Error fetching weather data:", error);
-            return this.getMockWeatherData(coords);
-        }
-    }
-    
-    getMockWeatherData(coords) {
-        const absLat = Math.abs(coords.latitude);
-        let temp;
-        
-        if (absLat > 60) temp = 5;
-        else if (absLat > 40) temp = 15;
-        else temp = 25;
-        
-        return {
-            temperature: {
-                celsius: temp,
-                fahrenheit: Math.round(temp * 9/5 + 32)
-            },
-            conditions: "Weather data simulation (API key required)",
-            humidity: 60,
-            windSpeed: 5,
-            location: "Based on your coordinates",
-            note: "This is simulated data. Add a real API key for actual weather."
-        };
-    }
-
-    async getAstronomyData(coords) {
-        try {
-            const date = new Date();
-            const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+            console.error('Error getting ISS distance:', error);
             
-            const times = this.calculateSunriseSunset(coords.latitude, coords.longitude, date);
-            
+            if (window.endTiming) window.endTiming('insights-iss');
             return {
-                sunriseTime: times.sunrise,
-                sunsetTime: times.sunset,
-                dayLength: times.dayLength,
-                solarNoon: times.solarNoon,
-                currentSolarPosition: this.calculateSolarPosition(coords.latitude, coords.longitude, date)
+                error: 'Failed to get ISS location: ' + error.message
             };
-        } catch (error) {
-            console.error("Error calculating astronomy data:", error);
-            return { error: "Could not calculate astronomy data" };
         }
     }
-    
-    calculateSunriseSunset(lat, lng, date) {
-        const now = date || new Date();
-        const jan = new Date(now.getFullYear(), 0, 1);
-        const dayOfYear = Math.floor((now - jan) / 86400000);
-        
-        const declination = 23.45 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81));
-        const sunrise = new Date(now.setHours(6 + (30 / 60)));
-        const sunset = new Date(now.setHours(18 - (30 / 60)));
-        const dayLength = "~12 hours";
-        const solarNoon = new Date(now.setHours(12, 0, 0));
-        
-        return {
-            sunrise: sunrise.toTimeString().split(' ')[0],
-            sunset: sunset.toTimeString().split(' ')[0],
-            dayLength,
-            solarNoon: solarNoon.toTimeString().split(' ')[0]
-        };
-    }
-    
-    calculateSolarPosition(lat, lng, date) {
-        const now = date || new Date();
-        const hours = now.getHours() + now.getMinutes() / 60;
-        
-        const altitude = Math.sin((hours - 12) / 12 * Math.PI) * 90;
-        const azimuth = (hours / 24) * 360;
-        
-        return {
-            altitude: Math.round(altitude),
-            azimuth: Math.round(azimuth),
-            description: hours > 6 && hours < 18 ? "Sun is above horizon" : "Sun is below horizon"
-        };
-    }
 
-    async getTimezoneInfo(coords) {
+    /**
+     * Gets weather data for the user's location
+     * @param {Object|null} coords User coordinates
+     * @returns {Promise<Object>} Weather data
+     */
+    async getWeatherData(coords) {
+        if (window.startTiming) window.startTiming('insights-weather');
+        
         try {
-            const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (!coords) {
+                return {
+                    error: 'Geolocation data required to get weather information'
+                };
+            }
+            
+            // Use OpenWeatherMap API (normally would use API key)
+            // For demo purposes, we'll simulate the response
+            
+            // In production, would use:
+            // const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${coords.latitude}&lon=${coords.longitude}&appid=${API_KEY}&units=metric`);
+            // const weatherData = await response.json();
+            
+            // Simulate weather data based on location and time
             const now = new Date();
+            const season = this.getSeason(coords.latitude, now);
+            const hour = now.getHours();
+            const isDaytime = hour >= 6 && hour < 18;
             
-            const utcOffset = -now.getTimezoneOffset() / 60;
-            const utcOffsetStr = utcOffset >= 0 ? `+${utcOffset}` : `${utcOffset}`;
+            const simulatedConditions = [
+                'Clear sky', 'Partly cloudy', 'Cloudy', 
+                'Light rain', 'Moderate rain', 'Heavy rain',
+                'Thunderstorm', 'Fog', 'Snow', 'Drizzle'
+            ];
             
-            return {
-                localTimezone,
-                utcOffset: utcOffsetStr,
-                currentLocalTime: now.toLocaleTimeString(),
-                currentUtcTime: now.toUTCString()
+            // Pseudo-random but consistent weather based on coordinates
+            const hashValue = Math.abs(coords.latitude * 10 + coords.longitude * 10);
+            const conditionIndex = hashValue % simulatedConditions.length;
+            const condition = simulatedConditions[conditionIndex];
+            
+            // Base temperature on season and latitude
+            let baseTemp = 20; // Default moderate temperature
+            if (Math.abs(coords.latitude) > 60) {
+                baseTemp = 5; // Colder at extreme latitudes
+            } else if (Math.abs(coords.latitude) > 30) {
+                baseTemp = 15; // Moderate at middle latitudes
+            }
+            
+            // Adjust for season
+            let seasonalModifier = 0;
+            if (season === 'Summer') seasonalModifier = 15;
+            else if (season === 'Winter') seasonalModifier = -15;
+            else seasonalModifier = 0; // Spring/Fall
+            
+            // Day/night adjustment
+            const timeModifier = isDaytime ? 5 : -5;
+            
+            // Randomize slightly to simulate real weather variation
+            const randomModifier = (Math.sin(hashValue) * 5);
+            
+            const tempCelsius = baseTemp + seasonalModifier + timeModifier + randomModifier;
+            
+            const result = {
+                location: this.estimateLocationName(coords.latitude, coords.longitude),
+                country: this.estimateCountry(coords.latitude, coords.longitude),
+                temperature: {
+                    celsius: tempCelsius.toFixed(1),
+                    fahrenheit: (tempCelsius * 9/5 + 32).toFixed(1)
+                },
+                conditions: condition,
+                humidity: Math.floor(hashValue % 50) + 30, // Random humidity between 30-80%
+                windSpeed: (Math.abs(Math.sin(hashValue)) * 10).toFixed(1), // Random wind speed
+                note: 'This is simulated weather data for demonstration purposes.'
             };
+            
+            if (window.endTiming) window.endTiming('insights-weather');
+            return result;
         } catch (error) {
-            console.error("Error getting timezone info:", error);
-            return { error: "Could not determine timezone information" };
+            console.error('Error getting weather data:', error);
+            
+            if (window.endTiming) window.endTiming('insights-weather');
+            return {
+                error: 'Failed to get weather information: ' + error.message
+            };
         }
     }
 
-    async getInternetHealthData() {
+    /**
+     * Gets astronomy data for the user's location (sunrise, sunset, etc.)
+     * @param {Object|null} coords User coordinates
+     * @returns {Promise<Object>} Astronomy data
+     */
+    async getAstronomyData(coords) {
+        if (window.startTiming) window.startTiming('insights-astronomy');
+        
         try {
-            const startTime = performance.now();
-            
-            const response = await fetch('https://httpbin.org/get', {
-                method: 'GET',
-                cache: 'no-cache'
-            });
-            
-            const endTime = performance.now();
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error: ${response.status}`);
+            if (!coords) {
+                return {
+                    error: 'Geolocation data required to calculate astronomical data'
+                };
             }
             
-            return {
-                latency: Math.round(endTime - startTime),
-                connectionType: navigator.connection ? navigator.connection.effectiveType : 'Unknown',
-                dnsResolution: 'Test completed',
-                packetLoss: '0%'
+            // Calculate sunrise and sunset times using SunCalc library
+            // For demo purposes, we'll use a simplified calculation
+            const now = new Date();
+            const januaryDay = new Date(now.getFullYear(), 0, 1);
+            const dayOfYear = Math.floor((now - januaryDay) / 86400000);
+            
+            // Simple sunrise/sunset approximation
+            const latitude = coords.latitude;
+            
+            // Base times (approximate)
+            let baseSunriseHour = 6; // 6 AM
+            let baseSunsetHour = 18; // 6 PM
+            
+            // Adjust for latitude and season
+            const latitudeAdjustment = latitude / 90; // -1 to 1 range
+            const seasonalAdjustment = Math.sin((dayOfYear / 365) * 2 * Math.PI) * 2; // -2 to 2 hours
+            
+            // Higher latitudes have more extreme day length variations
+            const latitudeSeasonalEffect = Math.abs(latitudeAdjustment) * seasonalAdjustment;
+            
+            baseSunriseHour -= latitudeSeasonalEffect;
+            baseSunsetHour += latitudeSeasonalEffect;
+            
+            // Format times
+            const sunriseDate = new Date(now);
+            sunriseDate.setHours(baseSunriseHour, (baseSunriseHour % 1) * 60, 0);
+            
+            const sunsetDate = new Date(now);
+            sunsetDate.setHours(baseSunsetHour, (baseSunsetHour % 1) * 60, 0);
+            
+            // Calculate day length
+            const dayLength = (baseSunsetHour - baseSunriseHour);
+            const dayLengthHours = Math.floor(dayLength);
+            const dayLengthMinutes = Math.floor((dayLength - dayLengthHours) * 60);
+            
+            // Calculate solar noon
+            const solarNoonDate = new Date(now);
+            const solarNoonHour = (baseSunriseHour + baseSunsetHour) / 2;
+            solarNoonDate.setHours(solarNoonHour, (solarNoonHour % 1) * 60, 0);
+            
+            // Solar position calculation
+            const hourAngle = (now.getHours() + now.getMinutes() / 60 - 12) * 15;
+            const declination = 23.45 * Math.sin((360 / 365) * (dayOfYear - 81) * Math.PI / 180);
+            
+            const altitude = Math.asin(
+                Math.sin(latitude * Math.PI / 180) * Math.sin(declination * Math.PI / 180) +
+                Math.cos(latitude * Math.PI / 180) * Math.cos(declination * Math.PI / 180) * 
+                Math.cos(hourAngle * Math.PI / 180)
+            ) * 180 / Math.PI;
+            
+            const azimuth = Math.atan2(
+                Math.sin(hourAngle * Math.PI / 180),
+                Math.cos(hourAngle * Math.PI / 180) * Math.sin(latitude * Math.PI / 180) -
+                Math.tan(declination * Math.PI / 180) * Math.cos(latitude * Math.PI / 180)
+            ) * 180 / Math.PI + 180;
+            
+            let solarDescription;
+            if (altitude > 15) {
+                solarDescription = "The sun is high in the sky.";
+            } else if (altitude > 0) {
+                solarDescription = "The sun is low on the horizon.";
+            } else if (altitude > -6) {
+                solarDescription = "Civil twilight - it's dusk/dawn.";
+            } else if (altitude > -12) {
+                solarDescription = "Nautical twilight - the horizon is barely visible.";
+            } else if (altitude > -18) {
+                solarDescription = "Astronomical twilight - the sky is dark enough for most astronomical observations.";
+            } else {
+                solarDescription = "It's night time - the sun is far below the horizon.";
+            }
+            
+            const result = {
+                sunriseTime: sunriseDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                sunsetTime: sunsetDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                dayLength: `${dayLengthHours}h ${dayLengthMinutes}m`,
+                solarNoon: solarNoonDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                currentSolarPosition: {
+                    altitude: altitude.toFixed(1),
+                    azimuth: azimuth.toFixed(1),
+                    description: solarDescription
+                },
+                note: 'This is approximated astronomical data for demonstration purposes.'
             };
+            
+            if (window.endTiming) window.endTiming('insights-astronomy');
+            return result;
         } catch (error) {
-            console.error("Error testing internet health:", error);
+            console.error('Error calculating astronomy data:', error);
+            
+            if (window.endTiming) window.endTiming('insights-astronomy');
             return {
-                latency: 'Test failed',
-                connectionType: navigator.connection ? navigator.connection.effectiveType : 'Unknown',
-                dnsResolution: 'Test failed',
-                error: "Could not complete internet health tests"
+                error: 'Failed to calculate astronomical data: ' + error.message
             };
         }
     }
 
-    calculateFingerprintUniqueness(baseData) {
-        let uniquenessScore = 0;
-        let maxScore = 0;
+    /**
+     * Analyzes browser privacy protections
+     * @param {Object} data Collected browser data
+     * @returns {Promise<Object>} Privacy score and recommendations
+     */
+    async analyzePrivacy(data) {
+        if (window.startTiming) window.startTiming('insights-privacy');
         
-        if (baseData.screen && baseData.screen.screen) {
-            const resolution = `${baseData.screen.screen.width}x${baseData.screen.screen.height}`;
-            uniquenessScore += resolution === "1920x1080" ? 1 : 3;
-            maxScore += 3;
-        }
-        
-        if (baseData.fingerprinting && baseData.fingerprinting.canvas) {
-            uniquenessScore += 5;
-            maxScore += 5;
-        }
-        
-        if (baseData.navigator && baseData.navigator.userAgent) {
-            const ua = baseData.navigator.userAgent;
-            if (ua.includes("Chrome") && !ua.includes("Edge")) uniquenessScore += 1;
-            else if (ua.includes("Firefox")) uniquenessScore += 2;
-            else uniquenessScore += 4;
-            maxScore += 4;
-        }
-        
-        if (baseData.fingerprinting && baseData.fingerprinting.fonts) {
-            uniquenessScore += 3;
-            maxScore += 3;
-        }
-        
-        if (baseData.navigator && baseData.navigator.plugins && baseData.navigator.plugins.length > 0) {
-            uniquenessScore += Math.min(baseData.navigator.plugins.length, 4);
-            maxScore += 4;
-        }
-        
-        if (baseData.fingerprinting && baseData.fingerprinting.webGL && !baseData.fingerprinting.webGL.error) {
-            uniquenessScore += 4;
-            maxScore += 4;
-        }
-        
-        const uniquenessPercentage = Math.round((uniquenessScore / maxScore) * 100);
-        
-        let interpretation;
-        if (uniquenessPercentage < 30) {
-            interpretation = "Your browser configuration is fairly common and less uniquely identifiable.";
-        } else if (uniquenessPercentage < 70) {
-            interpretation = "Your browser has a moderately unique fingerprint.";
-        } else {
-            interpretation = "Your browser has a highly unique fingerprint that could make you easily identifiable.";
-        }
-        
-        return {
-            score: uniquenessPercentage,
-            interpretation,
-            maxPossibleScore: 100,
-            fingerprintingElements: maxScore
-        };
-    }
-
-    estimateCarbonFootprint(baseData) {
-        let baseCO2PerHour = 0.1;
-        
-        if (baseData.navigator && baseData.navigator.userAgent) {
-            const ua = baseData.navigator.userAgent;
-            if (ua.includes("Mobile") || ua.includes("Android")) {
-                baseCO2PerHour = 0.05;
-            } else if (ua.includes("Mac")) {
-                baseCO2PerHour = 0.12;
-            } else if (ua.includes("Linux")) {
-                baseCO2PerHour = 0.09;
+        try {
+            const privacyIssues = [];
+            const privacyRecommendations = [];
+            let score = 100; // Start with perfect score and deduct points
+            
+            // Check for basic privacy protections
+            if (data.navigator) {
+                // Check Do Not Track setting
+                if (!data.navigator.doNotTrack || data.navigator.doNotTrack !== '1') {
+                    privacyIssues.push("Do Not Track is not enabled");
+                    privacyRecommendations.push("Enable 'Do Not Track' in your browser settings");
+                    score -= 10;
+                }
+                
+                // Check for excessive plugin exposure
+                if (data.navigator.plugins && data.navigator.plugins.length > 5) {
+                    privacyIssues.push("Your browser exposes multiple plugins, increasing fingerprinting risk");
+                    privacyRecommendations.push("Disable unnecessary browser plugins");
+                    score -= 5;
+                }
             }
-        }
-        
-        if (baseData.navigator && baseData.navigator.userAgent) {
-            const ua = baseData.navigator.userAgent;
-            if (ua.includes("Firefox")) {
-                baseCO2PerHour *= 0.95;
-            } else if (ua.includes("Edge")) {
-                baseCO2PerHour *= 0.97;
+            
+            // Check for WebRTC leaks
+            if (data.webrtc && data.webrtc.leakDetected) {
+                privacyIssues.push("WebRTC may leak your local IP address");
+                privacyRecommendations.push("Install a WebRTC blocking extension or disable WebRTC in your browser");
+                score -= 15;
             }
-        }
-        
-        const hourlyCO2 = baseCO2PerHour;
-        const dailyCO2 = hourlyCO2 * 5;
-        const yearlyCO2 = dailyCO2 * 365;
-        
-        const kmDriven = yearlyCO2 / 0.12;
-        const coffeeEquivalent = yearlyCO2 / 0.2;
-        
-        return {
-            hourly: hourlyCO2.toFixed(3),
-            daily: dailyCO2.toFixed(2),
-            yearly: yearlyCO2.toFixed(1),
-            comparisons: {
-                kmDriven: Math.round(kmDriven),
-                coffeeEquivalent: Math.round(coffeeEquivalent)
-            },
-            note: "This is a very rough estimate based on device type and browser. Actual results may vary significantly."
-        };
-    }
-
-    calculatePrivacyScore(baseData) {
-        let privacyScore = 100;
-        const issues = [];
-        
-        if (baseData.navigator && baseData.navigator.doNotTrack !== "1") {
-            privacyScore -= 10;
-            issues.push("Do Not Track is not enabled");
-        }
-        
-        if (baseData.fingerprinting && baseData.fingerprinting.canvas && !baseData.fingerprinting.canvas.error) {
-            privacyScore -= 15;
-            issues.push("Canvas fingerprinting is possible");
-        }
-        
-        if (baseData.network && baseData.network.webrtcIPs && baseData.network.webrtcIPs.length > 0) {
-            privacyScore -= 20;
-            issues.push("WebRTC might expose your local IP addresses");
-        }
-        
-        if (baseData.navigator && baseData.navigator.cookieEnabled) {
-            privacyScore -= 10;
-            issues.push("Third-party cookies are accepted");
-        }
-        
-        if (baseData.navigator && baseData.navigator.userAgent) {
-            const ua = baseData.navigator.userAgent;
-            if (!(ua.includes("Firefox") || ua.includes("Brave") || ua.includes("Tor"))) {
-                privacyScore -= 5;
-                issues.push("Not using a privacy-focused browser");
+            
+            // Check for Canvas fingerprinting resistance
+            if (data.fingerprinting && 
+                data.fingerprinting.canvas && 
+                !data.fingerprinting.canvas.error) {
+                privacyIssues.push("Your browser can be tracked via canvas fingerprinting");
+                privacyRecommendations.push("Use a browser with anti-fingerprinting protections like Firefox with privacy settings or Tor Browser");
+                score -= 12;
             }
-        }
-        
-        const privacyExtensionsDetected = false;
-        if (!privacyExtensionsDetected) {
-            privacyScore -= 15;
-            issues.push("No privacy-enhancing browser extensions detected");
-        }
-        
-        let rating, color;
-        if (privacyScore >= 80) {
-            rating = "Excellent";
-            color = "#2ecc71";
-        } else if (privacyScore >= 60) {
-            rating = "Good";
-            color = "#3498db";
-        } else if (privacyScore >= 40) {
-            rating = "Fair";
-            color = "#f39c12";
-        } else {
-            rating = "Poor";
-            color = "#e74c3c";
-        }
-        
-        return {
-            score: Math.max(0, privacyScore),
-            rating,
-            color,
-            issues,
-            recommendations: this.getPrivacyRecommendations(issues)
-        };
-    }
-    
-    getPrivacyRecommendations(issues) {
-        const recommendations = [];
-        
-        if (issues.includes("Do Not Track is not enabled")) {
-            recommendations.push("Enable 'Do Not Track' in your browser settings");
-        }
-        
-        if (issues.includes("Canvas fingerprinting is possible")) {
-            recommendations.push("Use a browser extension that blocks fingerprinting or switch to a privacy-focused browser");
-        }
-        
-        if (issues.includes("WebRTC might expose your local IP addresses")) {
-            recommendations.push("Install a WebRTC blocking extension or disable WebRTC in your browser");
-        }
-        
-        if (issues.includes("Third-party cookies are accepted")) {
-            recommendations.push("Block third-party cookies in your browser settings");
-        }
-        
-        if (issues.includes("Not using a privacy-focused browser")) {
-            recommendations.push("Consider switching to Firefox, Brave, or Tor Browser");
-        }
-        
-        if (issues.includes("No privacy-enhancing browser extensions detected")) {
-            recommendations.push("Install privacy extensions like Privacy Badger, uBlock Origin, or HTTPS Everywhere");
-        }
-        
-        if (recommendations.length === 0) {
-            recommendations.push("Regularly clear your browser cookies and cache");
-            recommendations.push("Consider using a VPN for additional privacy");
-        }
-        
-        return recommendations;
-    }
-
-    analyzeTrackingVulnerability(baseData) {
-        const vulnerabilities = [];
-        
-        if (baseData.navigator && baseData.navigator.cookieEnabled) {
-            vulnerabilities.push({
-                name: "Cookie Tracking",
-                description: "Your browser accepts cookies which can be used to track you across websites",
-                severity: "High"
-            });
-        }
-        
-        if (baseData.navigator && baseData.navigator.localStorageAvailable) {
-            vulnerabilities.push({
-                name: "Local Storage Tracking",
-                description: "Sites can store tracking data in your browser's localStorage",
-                severity: "Medium"
-            });
-        }
-        
-        if (baseData.fingerprinting && baseData.fingerprinting.canvas && !baseData.fingerprinting.canvas.error) {
-            vulnerabilities.push({
-                name: "Canvas Fingerprinting",
-                description: "Your browser can be identified using canvas rendering differences",
-                severity: "High"
-            });
-        }
-        
-        if (baseData.fingerprinting && baseData.fingerprinting.webGL && !baseData.fingerprinting.webGL.error) {
-            vulnerabilities.push({
-                name: "WebGL Fingerprinting",
-                description: "Your graphics hardware creates a unique signature",
-                severity: "Medium"
-            });
-        }
-        
-        if (baseData.fingerprinting && baseData.fingerprinting.audio && !baseData.fingerprinting.audio.error) {
-            vulnerabilities.push({
-                name: "Audio API Fingerprinting",
-                description: "Audio processing characteristics can be used to identify your device",
-                severity: "Medium"
-            });
-        }
-        
-        if (baseData.navigator) {
-            vulnerabilities.push({
-                name: "Navigator Object Enumeration",
-                description: "Browser details like plugins, platform and user agent can identify you",
-                severity: "Medium"
-            });
-        }
-        
-        return {
-            count: vulnerabilities.length,
-            items: vulnerabilities,
-            summary: this.getTrackingSummary(vulnerabilities)
-        };
-    }
-    
-    getTrackingSummary(vulnerabilities) {
-        const highSeverityCount = vulnerabilities.filter(v => v.severity === "High").length;
-        
-        if (highSeverityCount >= 2) {
-            return "Your browser is highly vulnerable to multiple tracking techniques";
-        } else if (highSeverityCount === 1) {
-            return "Your browser has some significant tracking vulnerabilities";
-        } else if (vulnerabilities.length > 0) {
-            return "Your browser has a few tracking vulnerabilities, but they are not severe";
-        } else {
-            return "Your browser appears well-protected against common tracking methods";
+            
+            // Check for hardware info exposure
+            if (data.navigator && data.navigator.hardwareConcurrency && data.navigator.deviceMemory) {
+                privacyIssues.push("Your browser reveals hardware information (CPU cores, memory)");
+                privacyRecommendations.push("Use a browser that limits hardware information exposure");
+                score -= 8;
+            }
+            
+            // Check connection info exposure
+            if (data.connection && 
+                data.connection.connection && 
+                typeof data.connection.connection === 'object' &&
+                data.connection.connection.effectiveType) {
+                privacyIssues.push("Your browser reveals network connection details");
+                score -= 5;
+            }
+            
+            // Check HTTPS
+            if (data.security && !data.security.https) {
+                privacyIssues.push("You're not using a secure HTTPS connection");
+                privacyRecommendations.push("Always use websites with HTTPS connections");
+                score -= 20;
+            }
+            
+            // Check media device info
+            if (data.media && 
+                ((data.media.videoinput && data.media.videoinput.length > 0) ||
+                 (data.media.audioinput && data.media.audioinput.length > 0))) {
+                privacyIssues.push("Your browser exposes media devices information");
+                score -= 8;
+            }
+            
+            // Ensure score stays within 0-100 range
+            score = Math.max(0, Math.min(100, score));
+            
+            // Generate rating based on score
+            let rating;
+            let color;
+            
+            if (score >= 90) {
+                rating = 'Excellent';
+                color = '#2ecc71'; // Green
+            } else if (score >= 70) {
+                rating = 'Good';
+                color = '#27ae60'; // Dark green
+            } else if (score >= 50) {
+                rating = 'Fair';
+                color = '#f39c12'; // Orange
+            } else if (score >= 30) {
+                rating = 'Poor';
+                color = '#e67e22'; // Dark orange
+            } else {
+                rating = 'Very Poor';
+                color = '#e74c3c'; // Red
+            }
+            
+            const result = {
+                score,
+                rating,
+                color,
+                issues: privacyIssues,
+                recommendations: privacyRecommendations
+            };
+            
+            if (window.endTiming) window.endTiming('insights-privacy');
+            return result;
+        } catch (error) {
+            console.error('Error analyzing privacy:', error);
+            
+            if (window.endTiming) window.endTiming('insights-privacy');
+            return {
+                error: 'Failed to analyze privacy: ' + error.message
+            };
         }
     }
 
+    /**
+     * Analyzes browser fingerprint uniqueness
+     * @param {Object} data Collected browser data
+     * @returns {Promise<Object>} Fingerprint uniqueness score
+     */
+    async analyzeFingerprintUniqueness(data) {
+        if (window.startTiming) window.startTiming('insights-fingerprint');
+        
+        try {
+            // Count unique identifying factors from data
+            // Note: In a real app, we'd compare these against a database of known values
+            let uniquenessFactors = 0;
+            let maxFactors = 0;
+            
+            // Helper to track factors
+            const addFactor = (condition, weight = 1) => {
+                maxFactors += weight;
+                if (condition) uniquenessFactors += weight;
+            };
+            
+            // Screen and resolution uniqueness
+            if (data.screen && data.screen.screen) {
+                addFactor(true, 2); // Having screen info at all
+                
+                // Unusual resolution
+                const width = data.screen.screen.width;
+                const height = data.screen.screen.height;
+                const isCommonResolution = (
+                    (width === 1920 && height === 1080) || 
+                    (width === 1366 && height === 768) || 
+                    (width === 1536 && height === 864) || 
+                    (width === 1440 && height === 900) || 
+                    (width === 1280 && height === 720)
+                );
+                addFactor(!isCommonResolution, 3);
+                
+                // Unusual pixel depth
+                addFactor(data.screen.screen.pixelDepth !== 24, 2);
+                
+                // Unusual color depth
+                addFactor(data.screen.screen.colorDepth !== 24, 2);
+            }
+            
+            // Browser and OS uniqueness
+            if (data.navigator) {
+                // User agent uniqueness
+                addFactor(true, 2); // Base factor for user agent
+                
+                // Check for uncommon browser
+                const commonBrowsers = ['chrome', 'firefox', 'safari', 'edge'];
+                const ua = data.navigator.userAgent.toLowerCase();
+                const isCommonBrowser = commonBrowsers.some(browser => ua.includes(browser));
+                addFactor(!isCommonBrowser, 3);
+                
+                // Hardware info
+                addFactor(!!data.navigator.hardwareConcurrency, 3);
+                addFactor(!!data.navigator.deviceMemory, 3);
+                
+                // Language settings
+                addFactor(data.navigator.language !== 'en-US', 2);
+                
+                // Plugins
+                if (data.navigator.plugins && data.navigator.plugins.length > 0) {
+                    addFactor(true, 2); // Base factor for having plugins
+                    addFactor(data.navigator.plugins.length > 5, 2); // Many plugins is more unique
+                    
+                    // Uncommon plugins would be even more unique
+                    // (simplified implementation)
+                }
+            }
+            
+            // Canvas fingerprinting uniqueness
+            if (data.fingerprinting && data.fingerprinting.canvas && !data.fingerprinting.canvas.error) {
+                addFactor(true, 5); // Canvas fingerprinting is highly identifying
+            }
+            
+            // WebGL fingerprinting
+            if (data.fingerprinting && data.fingerprinting.webGL) {
+                addFactor(true, 4); // WebGL info is somewhat identifying
+                addFactor(!!data.fingerprinting.webGL.unmaskedVendor, 3); // Unmasked info is more unique
+            }
+            
+            // Enhanced data checks
+            if (data.fonts) {
+                addFactor(true, 3); // Font detection adds uniqueness
+                addFactor(data.fonts.detectedCount > 20, 2); // Many fonts is more unique
+            }
+            
+            if (data.graphics && data.graphics.webgl && data.graphics.webgl.unmaskedRenderer) {
+                addFactor(true, 4); // GPU info is quite identifying
+            }
+            
+            // Calculate uniqueness percentage
+            const uniquenessScore = Math.round((uniquenessFactors / maxFactors) * 100);
+            
+            // Generate interpretation
+            let interpretation;
+            if (uniquenessScore < 30) {
+                interpretation = "Your browser has good protections against fingerprinting. You're less likely to be uniquely identified across websites.";
+            } else if (uniquenessScore < 60) {
+                interpretation = "Your browser has some fingerprinting surface area. You may be identifiable on some websites.";
+            } else {
+                interpretation = "Your browser appears to have a highly unique fingerprint. You can likely be identified across websites based on browser characteristics alone.";
+            }
+            
+            const result = {
+                score: uniquenessScore,
+                interpretation,
+                fingerprintingElements: maxFactors
+            };
+            
+            if (window.endTiming) window.endTiming('insights-fingerprint');
+            return result;
+        } catch (error) {
+            console.error('Error analyzing fingerprint:', error);
+            
+            if (window.endTiming) window.endTiming('insights-fingerprint');
+            return {
+                error: 'Failed to analyze fingerprint uniqueness: ' + error.message
+            };
+        }
+    }
+
+    /**
+     * Estimates carbon footprint of web browsing
+     * @param {Object} data Collected browser data
+     * @returns {Promise<Object>} Carbon footprint estimates
+     */
+    async estimateCarbonFootprint(data) {
+        if (window.startTiming) window.startTiming('insights-carbon');
+        
+        try {
+            // Base carbon value for web browsing
+            let baseCarbonPerHour = 0.06; // kgCO2e per hour (very rough estimate)
+            
+            // Adjust based on device type and performance
+            let deviceMultiplier = 1.0;
+            
+            // Check for mobile vs desktop
+            if (data.navigator && data.navigator.userAgent) {
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
+                    .test(data.navigator.userAgent);
+                    
+                deviceMultiplier = isMobile ? 0.7 : 1.2; // Mobile uses less power generally
+            }
+            
+            // Adjust for hardware capabilities
+            if (data.navigator && data.navigator.hardwareConcurrency) {
+                const cores = parseFloat(data.navigator.hardwareConcurrency);
+                if (!isNaN(cores)) {
+                    deviceMultiplier *= (0.8 + (cores / 16) * 0.4); // More cores = more power
+                }
+            }
+            
+            // Adjust for screen size
+            if (data.screen && data.screen.screen) {
+                const area = (data.screen.screen.width * data.screen.screen.height) / 1000000; // in millions of pixels
+                deviceMultiplier *= (0.8 + area * 0.2); // Larger screens use more power
+            }
+            
+            // Adjust for connection type (mobile networks use more energy)
+            if (data.connection && data.connection.connection && data.connection.connection.effectiveType) {
+                const connectionType = data.connection.connection.effectiveType;
+                if (connectionType === '4g') {
+                    deviceMultiplier *= 1.1;
+                } else if (connectionType === '3g') {
+                    deviceMultiplier *= 1.2;
+                } else if (connectionType === '2g' || connectionType === 'slow-2g') {
+                    deviceMultiplier *= 1.3;
+                }
+            }
+            
+            // Calculate hourly carbon footprint
+            const hourlyCarbon = baseCarbonPerHour * deviceMultiplier;
+            
+            // Calculate other time periods
+            const dailyCarbon = hourlyCarbon * 5; // Assuming 5 hours per day
+            const yearlyCarbon = dailyCarbon * 365;
+            
+            // Calculate equivalent values for context
+            const kmDriven = Math.round(yearlyCarbon * 6); // ~6km per kgCO2e
+            const coffeeEquivalent = Math.round(yearlyCarbon * 53); // ~53 cups per kgCO2e
+            
+            const result = {
+                hourly: hourlyCarbon.toFixed(4),
+                daily: dailyCarbon.toFixed(3),
+                yearly: yearlyCarbon.toFixed(2),
+                comparisons: {
+                    kmDriven,
+                    coffeeEquivalent
+                },
+                note: 'This is an approximation based on device type, screen size, and estimated usage patterns. Actual values may vary significantly.'
+            };
+            
+            if (window.endTiming) window.endTiming('insights-carbon');
+            return result;
+        } catch (error) {
+            console.error('Error estimating carbon footprint:', error);
+            
+            if (window.endTiming) window.endTiming('insights-carbon');
+            return {
+                error: 'Failed to estimate carbon footprint: ' + error.message
+            };
+        }
+    }
+
+    /* ----- Helper methods ----- */
+
+    /**
+     * Calculates distance between two lat/long points in kilometers (Haversine formula)
+     */
     calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371;
-        const dLat = this.deg2rad(lat2 - lat1);
-        const dLon = this.deg2rad(lon2 - lon1);
+        const R = 6371; // Earth radius in kilometers
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        
         const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
-            Math.sin(dLon/2) * Math.sin(dLon/2); 
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-        const distance = R * c;
-        return distance;
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
-    
-    deg2rad(deg) {
-        return deg * (Math.PI/180);
+
+    /**
+     * Determines current season based on latitude and date
+     */
+    getSeason(latitude, date) {
+        const month = date.getMonth() + 1; // 1 = January, 12 = December
+        
+        // Northern hemisphere seasons
+        if (latitude >= 0) {
+            if (month >= 3 && month <= 5) return 'Spring';
+            if (month >= 6 && month <= 8) return 'Summer';
+            if (month >= 9 && month <= 11) return 'Fall';
+            return 'Winter';
+        } 
+        // Southern hemisphere (reversed seasons)
+        else {
+            if (month >= 3 && month <= 5) return 'Fall';
+            if (month >= 6 && month <= 8) return 'Winter';
+            if (month >= 9 && month <= 11) return 'Spring';
+            return 'Summer';
+        }
+    }
+
+    /**
+     * Roughly estimates location name based on coordinates
+     * In a real app, this would use a geolocation API
+     */
+    estimateLocationName(latitude, longitude) {
+        // Very simplistic mapping for demo purposes
+        if (latitude > 40 && latitude < 50 && longitude > -80 && longitude < -70) return 'New York Area';
+        if (latitude > 30 && latitude < 40 && longitude > -120 && longitude < -110) return 'Los Angeles Area';
+        if (latitude > 50 && latitude < 55 && longitude > -1 && longitude < 1) return 'London Area';
+        if (latitude > 48 && latitude < 50 && longitude > 1 && longitude < 3) return 'Paris Area';
+        if (latitude > -35 && latitude < -33 && longitude > 150 && longitude < 152) return 'Sydney Area';
+        
+        return 'Unknown Location';
+    }
+
+    /**
+     * Roughly estimates country based on coordinates
+     */
+    estimateCountry(latitude, longitude) {
+        // Very simplistic mapping for demo purposes
+        if (latitude > 25 && latitude < 50 && longitude > -125 && longitude < -65) return 'United States';
+        if (latitude > 35 && latitude < 60 && longitude > -10 && longitude < 25) return 'Europe';
+        if (latitude > -10 && latitude < 35 && longitude > 65 && longitude < 90) return 'India';
+        if (latitude > 20 && latitude < 40 && longitude > 100 && longitude < 145) return 'China';
+        if (latitude > -40 && latitude < -10 && longitude > 110 && longitude < 155) return 'Australia';
+        
+        return 'Unknown Country';
     }
 }
 

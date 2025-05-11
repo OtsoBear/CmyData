@@ -108,7 +108,7 @@
             <p>This tool reveals what information websites can collect about your device, browser, and system - all without asking for permission. All data is collected client-side using standard browser APIs.</p>
             
             <div class="button-container">
-                <button id="collect-all-data" class="primary-button" type="button">
+                <button id="collect-all-data" class="primary-button" type="button" onclick="startScan()">
                     <i class="fas fa-satellite-dish"></i> Start Comprehensive Scan
                 </button>
             </div>
@@ -117,23 +117,6 @@
                 <div class="spinner"></div>
                 <p>Analyzing your digital footprint...</p>
                 <!-- Progress bar will be inserted here by loading-tracker.js -->
-            </div>
-            
-            <div id="timing-results" class="hidden">
-                <h3>Performance Results</h3>
-                <p>Detailed scan timing information:</p>
-                <table class="timing-table" id="timing-table">
-                    <thead>
-                        <tr>
-                            <th>Operation</th>
-                            <th>Time (ms)</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Will be populated with timing data -->
-                    </tbody>
-                </table>
             </div>
         </div>
 
@@ -166,7 +149,6 @@
     <!-- Load compatibility and utility scripts first -->
     <script src="browser-compatibility.js"></script>
     <script src="data-validator.js"></script>
-    <script src="loading-tracker.js"></script>
     <script src="main.js"></script>
     <script src="comprehensive-collector.js"></script>
     <script src="enhanced-collector.js"></script>
@@ -174,61 +156,89 @@
     <script src="ui-controller.js"></script>
     
     <script>
-        // Add event listener to show timing results after scan
-        document.addEventListener('DOMContentLoaded', function() {
-            const originalCollectAllData = document.getElementById('collect-all-data').onclick;
+        // Initialize the UI controller to ensure it's available
+        function initializeApp() {
+            console.log('Initializing application...');
             
-            document.getElementById('collect-all-data').onclick = async function(e) {
-                // Initialize loading tracker
-                if (window.startTiming) window.startTiming('scan', 'Full Scan');
-                if (window.loadingTracker) {
-                    window.loadingTracker.start();
+            // Create UI controller if it doesn't exist
+            if (!window.uiController) {
+                console.log('Creating UI Controller instance');
+                try {
+                    window.uiController = new UIController();
+                    console.log('UI Controller created successfully');
+                } catch (err) {
+                    console.error('Failed to create UI Controller:', err);
+                    alert('Error initializing the application. Please check the console for details.');
                 }
+            }
+        }
+        
+        // Global function to start the scan (can be called directly from button)
+        function startScan() {
+            console.log('Scan button clicked - startScan function called');
+            
+            // Show loading indicator
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+            
+            // Hide intro section while scanning
+            const introSection = document.getElementById('intro-section');
+            if (introSection) introSection.classList.add('hidden');
+            
+            // Start loading tracker if available
+            if (window.loadingTracker && typeof window.loadingTracker.start === 'function') {
+                window.loadingTracker.start();
+            }
+            
+            // Check if UI Controller exists, initialize if needed
+            if (!window.uiController) {
+                console.log('UI Controller not found, attempting to initialize...');
+                initializeApp();
+            }
+            
+            // Now try to use the UI Controller
+            if (window.uiController && typeof window.uiController.collectAllData === 'function') {
+                console.log('Calling uiController.collectAllData()');
+                window.uiController.collectAllData();
+            } else {
+                console.error('uiController not available or collectAllData is not a function');
+                alert('Error: Could not start the scan. Please reload the page and try again.');
                 
-                // Call the original handler if it exists
-                if (typeof originalCollectAllData === 'function') {
-                    await originalCollectAllData.call(this, e);
-                }
+                // Restore visibility of intro section
+                if (introSection) introSection.classList.remove('hidden');
                 
-                if (window.endTiming) window.endTiming('scan');
-                if (typeof window.showAllTimings === 'function') {
-                    window.showAllTimings();
-                }
+                // Hide loading indicator
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+            }
+        }
 
-                // After scan completes and if we have timing data
-                if (window.scanTimings) {
-                    const timingTable = document.getElementById('timing-table').querySelector('tbody');
-                    timingTable.innerHTML = '';
-                    
-                    // Add rows for each step
-                    Object.entries(window.scanTimings.steps).forEach(([stepId, time]) => {
-                        const step = window.loadingTracker.steps.find(s => s.id === stepId);
-                        if (!step) return;
-                        
-                        const row = document.createElement('tr');
-                        const percent = ((time / window.scanTimings.total) * 100).toFixed(1);
-                        
-                        row.innerHTML = `
-                            <td>${step.name}</td>
-                            <td>${Math.round(time)}</td>
-                            <td>${percent}%</td>
-                        `;
-                        timingTable.appendChild(row);
-                    });
-                    
-                    // Add total row
-                    const totalRow = document.createElement('tr');
-                    totalRow.style.fontWeight = 'bold';
-                    totalRow.innerHTML = `
-                        <td>Total</td>
-                        <td>${Math.round(window.scanTimings.total)}</td>
-                        <td>100%</td>
-                    `;
-                    timingTable.appendChild(totalRow);
-                    
-                    document.getElementById('timing-results').classList.remove('hidden');
-                }
-            };
+        // When the DOM is fully loaded, initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOMContentLoaded fired');
+            
+            // Initialize the application
+            initializeApp();
+            
+            // Set up the button click event as a backup
+            const collectButton = document.getElementById('collect-all-data');
+            if (collectButton) {
+                console.log('Found button, attaching event listener');
+                collectButton.addEventListener('click', function(e) {
+                    console.log('Button clicked via event listener');
+                    startScan();
+                });
+            } else {
+                console.error('Button with ID "collect-all-data" not found');
+            }
+        });
+        
+        // Additional safety check - run initialization when window loads
+        window.addEventListener('load', function() {
+            console.log('Window load event fired');
+            if (!window.uiController) {
+                console.log('UI Controller not initialized during DOMContentLoaded, initializing now...');
+                initializeApp();
+            }
         });
     </script>
 </body>

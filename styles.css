@@ -1152,6 +1152,7 @@ button:disabled {
 }
 
 .fingerprint-details.hidden {
+    display: none;
     max-height: 0;
     opacity: 0;
     padding-top: 0;
@@ -1161,11 +1162,23 @@ button:disabled {
 }
 
 .fingerprint-details:not(.hidden) {
+    display: block;
     max-height: 300px;
     opacity: 1;
     padding: 15px;
     margin-bottom: 15px !important;
     border-width: 1px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.fingerprint-details ul,
+.fingerprint-details ol {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.fingerprint-details li {
+    margin-bottom: 5px;
 }
 
 #fingerprint-score-display {
@@ -1214,6 +1227,22 @@ button:disabled {
     padding: 15px;
     margin: 10px 0 15px;
     border-width: 1px;
+}
+
+/* Improve privacy score visualization */
+.privacy-score-container {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+.features-list {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.features-list li {
+    margin-bottom: 8px;
+    line-height: 1.5;
 }
 
 /* User activity section styles */

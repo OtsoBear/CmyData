@@ -629,6 +629,47 @@ class UIController {
         });
     }
 
+    renderSummarySection(container, data) {
+        let html = '<div class="data-card">';
+        html += '<h4>Browser & System Summary</h4>';
+        
+        // Browser information
+        if (data.navigator) {
+            const nav = data.navigator;
+            html += this.createDataItem('Browser', nav.vendor ? `${nav.vendor} ${nav.appName}` : nav.appName || 'Unknown');
+            html += this.createDataItem('User Agent', nav.userAgent ? (nav.userAgent.length > 50 ? 
+                nav.userAgent.substring(0, 50) + '...' : nav.userAgent) : 'Unknown');
+            html += this.createDataItem('Platform', nav.platform || 'Unknown');
+        }
+        
+        // Network information
+        if (data.network && data.network.ip) {
+            html += this.createDataItem('IP Address', data.network.ip.public || 'Unknown');
+            
+            if (data.network.ip.geolocation) {
+                const geo = data.network.ip.geolocation;
+                const location = [];
+                if (geo.city) location.push(geo.city);
+                if (geo.country_name || geo.country) location.push(geo.country_name || geo.country);
+                html += this.createDataItem('Location', location.length ? location.join(', ') : 'Unknown');
+            }
+        }
+        
+        // Screen information
+        if (data.screen && data.screen.screen) {
+            html += this.createDataItem('Screen Resolution', 
+                `${data.screen.screen.width}×${data.screen.screen.height} (${data.screen.screen.colorDepth}-bit color)`);
+        }
+        
+        // Connection information
+        if (data.connection && data.connection.connection) {
+            html += this.createDataItem('Connection Type', data.connection.connection.effectiveType || 'Unknown');
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
     generateAndShowSummary() {
         if (!this.collectedData) return;
         
@@ -1446,6 +1487,162 @@ return;
         }
     }
 
+    renderPrivacyScoreData(container, data) {
+        if (!data) {
+            container.innerHTML = '<p class="warning">No privacy analysis data available</p>';
+            return;
+        }
+        
+        let html = '<div class="data-card">';
+        html += '<h4>Browser Privacy Analysis</h4>';
+        
+        // Score visualization
+        html += `<div class="privacy-score-container" style="margin-bottom: 20px;">
+            <div class="privacy-score" style="
+                font-size: 36px; 
+                font-weight: bold; 
+                color: ${data.color}; 
+                text-align: center;
+                margin-bottom: 10px;">${data.score}/100</div>
+            <div class="privacy-rating" style="
+                text-align: center; 
+                font-size: 24px; 
+                color: ${data.color};">${data.rating}</div>
+        </div>`;
+        
+        // Issues
+        if (data.issues && data.issues.length > 0) {
+            html += '<h5>Privacy Issues Detected</h5>';
+            html += '<ul class="features-list">';
+            data.issues.forEach(issue => {
+                html += `<li>${issue}</li>`;
+            });
+            html += '</ul>';
+        }
+        
+        // Recommendations
+        if (data.recommendations && data.recommendations.length > 0) {
+            html += '<h5>Recommendations</h5>';
+            html += '<ul class="features-list">';
+            data.recommendations.forEach(rec => {
+                html += `<li>${rec}</li>`;
+            });
+            html += '</ul>';
+        } else {
+            html += '<p>No specific privacy recommendations available.</p>';
+        }
+        
+        html += '</div>'; // Close the data-card div
+        container.innerHTML = html;
+    }
+
+    renderFingerprintUniquenessData(container, data) {
+        if (!data) {
+            container.innerHTML = '<p class="warning">No fingerprint data available</p>';
+            return;
+        }
+        
+        let html = '<div class="data-card">';
+        html += '<h4>Browser Fingerprint Uniqueness</h4>';
+        
+        // Score visualization
+        const scoreColor = data.score < 33 ? "#2ecc71" : data.score < 66 ? "#f39c12" : "#e74c3c";
+        html += `<div class="fingerprint-score-container" style="margin-bottom: 20px;">
+            <div class="fingerprint-score" style="
+                font-size: 36px; 
+                font-weight: bold; 
+                color: ${scoreColor}; 
+                text-align: center;
+                margin-bottom: 10px;
+                cursor: pointer;
+                position: relative;" 
+                id="fingerprint-score-display"
+                title="Click for fingerprint calculation details">${data.score}%</div>
+            <div class="uniqueness-label" style="
+                text-align: center; 
+                font-size: 18px;">${data.score < 33 ? 'Low' : data.score < 66 ? 'Medium' : 'High'} Uniqueness</div>
+        </div>`;
+        
+        // Add a hidden details section that will be shown on click
+        html += `<div id="fingerprint-details" class="fingerprint-details hidden" style="
+            background-color: rgba(13, 18, 30, 0.8);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-color);
+        ">
+            <h5>Fingerprint Calculation Details</h5>
+            <p>Your browser fingerprint uniqueness score is calculated based on:</p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Screen resolution and color depth</li>
+                <li>Canvas rendering differences</li>
+                <li>WebGL capabilities and renderer</li>
+                <li>Installed fonts</li>
+                <li>Browser plugins and extensions</li>
+                <li>User agent and browser features</li>
+                <li>Hardware capabilities</li>
+            </ul>
+            <p style="margin-top: 10px;">Higher scores mean your browser is more uniquely identifiable across the web.</p>
+        </div>`;
+        
+        html += `<p style="margin-bottom: 15px;">${data.interpretation || 'Your browser fingerprint uniqueness determines how easily you can be tracked across websites.'}</p>`;
+        
+        // Make the elements analyzed count clickable with explanation
+        html += this.createDataItem('Fingerprinting Elements Analyzed', 
+            `<span id="fingerprint-elements" class="clickable-info" 
+             style="cursor: pointer; text-decoration: underline dotted; position: relative;"
+             title="Click for details">${data.fingerprintingElements || '12'}</span>`);
+        
+        // Add a hidden tooltip for fingerprinting elements explanation
+        html += `<div id="fingerprint-elements-details" class="fingerprint-details hidden" style="
+            background-color: rgba(13, 18, 30, 0.8);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0 15px;
+            border: 1px solid var(--border-color);
+        ">
+            <h5>Fingerprinting Elements Analyzed (${data.fingerprintingElements || '12'})</h5>
+            <p>These specific elements were analyzed to calculate your fingerprint uniqueness:</p>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>Screen Properties:</strong> Width, height, color depth, pixel ratio</li>
+                <li><strong>Canvas Fingerprinting:</strong> Rendering differences, text metrics</li>
+                <li><strong>WebGL Information:</strong> Renderer, vendor, supported extensions</li>
+                <li><strong>Browser Details:</strong> User agent, platform, language preferences</li>
+                <li><strong>Font Detection:</strong> System fonts available to the browser</li>
+                <li><strong>Browser Plugins:</strong> Installed plugins and their properties</li>
+                <li><strong>Hardware Information:</strong> CPU cores, memory, device orientation</li>
+                <li><strong>Media Capabilities:</strong> Supported codecs and formats</li>
+                <li><strong>Audio Processing:</strong> AudioContext fingerprinting</li>
+                <li><strong>Time and Timezone:</strong> System time precision measurements</li>
+            </ol>
+            <p style="margin-top: 10px;">Each browser has a unique combination of these elements, creating a "fingerprint" that can be used to track you across websites.</p>
+        </div>`;
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Add event listeners for interactive elements
+        setTimeout(() => {
+            // Fingerprint score click handler
+            const scoreDisplay = document.getElementById('fingerprint-score-display');
+            const fingerprintDetails = document.getElementById('fingerprint-details');
+            if (scoreDisplay && fingerprintDetails) {
+                scoreDisplay.addEventListener('click', () => {
+                    fingerprintDetails.classList.toggle('hidden');
+                });
+            }
+            
+            // Fingerprint elements click handler
+            const elementsDisplay = document.getElementById('fingerprint-elements');
+            const elementsDetails = document.getElementById('fingerprint-elements-details');
+            if (elementsDisplay && elementsDetails) {
+                elementsDisplay.addEventListener('click', () => {
+                    elementsDetails.classList.toggle('hidden');
+                });
+            }
+        }, 10);
+    }
+
     renderComprehensiveData(container, data, sectionId) {
         if (!data) {
             container.innerHTML = '<p class="warning">No data available</p>';
@@ -1957,13 +2154,29 @@ return;
     }
 
     renderCodecData(container, data) {
+        if (!data) {
+            container.innerHTML = '<p class="warning">No codec data available</p>';
+            return;
+        }
+        
+        if (data.error) {
+            container.innerHTML = `<div class="data-card">
+                <h4>Codec Detection Error</h4>
+                <p class="warning">${data.error}</p>
+                <p>There was a problem detecting media codec support in your browser.</p>
+            </div>`;
+            return;
+        }
+        
         let html = '<div class="data-grid">';
         
         // Video codecs
         html += '<div class="data-card"><h4>Video Codecs</h4>';
         if (data.video && data.video.length) {
             data.video.forEach(codec => {
-                html += this.createDataItem(codec.name, codec.supported ? codec.status : 'Not supported');
+                const statusClass = codec.error ? 'warning' : (codec.supported ? 'success' : 'unavailable');
+                html += this.createDataItem(codec.name, 
+                    `<span class="${statusClass}">${codec.status}</span>`);
             });
         } else {
             html += '<p class="unavailable">Video codec information not available</p>';
@@ -1974,7 +2187,9 @@ return;
         html += '<div class="data-card"><h4>Audio Codecs</h4>';
         if (data.audio && data.audio.length) {
             data.audio.forEach(codec => {
-                html += this.createDataItem(codec.name, codec.supported ? codec.status : 'Not supported');
+                const statusClass = codec.error ? 'warning' : (codec.supported ? 'success' : 'unavailable');
+                html += this.createDataItem(codec.name, 
+                    `<span class="${statusClass}">${codec.status}</span>`);
             });
         } else {
             html += '<p class="unavailable">Audio codec information not available</p>';
@@ -1984,11 +2199,16 @@ return;
         // Media Source Extensions
         if (data.mediaSource) {
             html += '<div class="data-card"><h4>Media Source Extensions</h4>';
-            html += this.createDataItem('MSE Support', data.mediaSource.supported);
+            html += this.createDataItem('MSE Support', 
+                data.mediaSource.supported ? 
+                '<span class="success">Supported</span>' : 
+                '<span class="unavailable">Not supported</span>');
                 
-            if (data.mediaSource.supported && data.mediaSource.codecs.length) {
+            if (data.mediaSource.supported && data.mediaSource.codecs && data.mediaSource.codecs.length) {
                 data.mediaSource.codecs.forEach(codec => {
-                    html += this.createDataItem(codec.name, codec.supported);
+                    const statusClass = codec.error ? 'warning' : (codec.supported ? 'success' : 'unavailable');
+                    html += this.createDataItem(codec.name, 
+                        `<span class="${statusClass}">${codec.supported ? 'Supported' : 'Not supported'}</span>`);
                 });
             }
             html += '</div>';
@@ -1997,10 +2217,23 @@ return;
         // DRM systems
         if (data.drm) {
             html += '<div class="data-card"><h4>DRM Systems</h4>';
-            html += this.createDataItem('Widevine', this.formatDrmSupport(data.drm.widevine));
-            html += this.createDataItem('PlayReady', this.formatDrmSupport(data.drm.playready));
-            html += this.createDataItem('FairPlay', this.formatDrmSupport(data.drm.fairplay));
-            html += this.createDataItem('ClearKey', this.formatDrmSupport(data.drm.clearkey));
+            
+            // Helper function to get appropriate status class
+            const getDrmStatusClass = (status) => {
+                if (status === 'Supported') return 'success';
+                if (status.includes('Error')) return 'warning';
+                return 'unavailable';
+            };
+            
+            // Render each DRM system with appropriate styling
+            Object.entries(data.drm).forEach(([system, status]) => {
+                const statusClass = getDrmStatusClass(status);
+                html += this.createDataItem(
+                    this.formatDrmName(system), 
+                    `<span class="${statusClass}">${status}</span>`
+                );
+            });
+            
             html += '</div>';
         }
         
@@ -2008,14 +2241,16 @@ return;
         container.innerHTML = html;
     }
     
-    formatDrmSupport(support) {
-        if (support === true) {
-            return 'Supported';
-        } else if (support === false) {
-            return 'Not supported';
-        } else {
-            return support;
-        }
+    formatDrmName(name) {
+        // Format DRM system names nicely
+        const drmNames = {
+            'widevine': 'Widevine (Google)',
+            'playready': 'PlayReady (Microsoft)',
+            'fairplay': 'FairPlay (Apple)',
+            'clearkey': 'Clear Key (W3C Standard)'
+        };
+        
+        return drmNames[name] || name.charAt(0).toUpperCase() + name.slice(1);
     }
 
     renderExtendedFeaturesData(container, data) {
@@ -2294,129 +2529,6 @@ return;
         html += '</div>';
         container.innerHTML = html;
     }
-
-    renderPrivacyScoreData(container, data) {
-        let html = '<div class="data-card">';
-        html += '<h4>Browser Privacy Analysis</h4>';
-        
-        html += `<div class="privacy-score-container" style="margin-bottom: 20px;">
-            <div class="privacy-score" style="
-                font-size: 36px; 
-                font-weight: bold; 
-                color: ${data.color}; 
-                text-align: center;
-                margin-bottom: 10px;">${data.score}/100</div>
-            <div class="privacy-rating" style="
-                text-align: center; 
-                font-size: 24px; 
-                color: ${data.color};">${data.rating}</div>
-        </div>`;
-        
-        // Issues
-        if (data.issues && data.issues.length > 0) {
-            html += '<h5>Privacy Issues Detected</h5>';
-            html += '<ul class="features-list">';
-            data.issues.forEach(issue => {
-                html += `<li>${issue}</li>`;
-            });
-            html += '</ul>';
-        }
-        
-        // Recommendations
-        if (data.recommendations && data.recommendations.length > 0) {
-            html += '<h5>Recommendations</h5>';
-            html += '<ul class="features-list">';
-            data.recommendations.forEach(rec => {
-                html += `<li>${rec}</li>`;
-            });
-            html += '</ul>';
-        }
-        
-    html += '</div>';
-}
-
-renderFingerprintUniquenessData(container, data) {
-        let html = '<div class="data-card">';
-        html += '<h4>Browser Fingerprint Uniqueness</h4>';
-        
-        // Score visualization
-        const scoreColor = data.score < 33 ? "#2ecc71" : data.score < 66 ? "#f39c12" : "#e74c3c";
-        html += `<div class="fingerprint-score-container" style="margin-bottom: 20px;">
-            <div class="fingerprint-score" style="
-                font-size: 36px; 
-                font-weight: bold; 
-                color: ${scoreColor}; 
-                text-align: center;
-                margin-bottom: 10px;
-                cursor: pointer;
-                position: relative;" 
-                id="fingerprint-score-display"
-                title="Click for fingerprint calculation details">${data.score}%</div>
-            <div class="uniqueness-label" style="
-                text-align: center; 
-                font-size: 18px;">${data.score < 33 ? 'Low' : data.score < 66 ? 'Medium' : 'High'} Uniqueness</div>
-        </div>`;
-        
-        // Add a hidden details section that will be shown on click
-        html += `<div id="fingerprint-details" class="fingerprint-details hidden" style="
-            background-color: rgba(13, 18, 30, 0.8);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border: 1px solid var(--border-color);
-        ">
-            <h5>Fingerprint Calculation Details</h5>
-            <p>Your browser fingerprint uniqueness score is calculated based on:</p>
-            <ul style="margin-left: 20px; margin-top: 10px;">
-                <li>Screen resolution and color depth</li>
-                <li>Canvas rendering differences</li>
-                <li>WebGL capabilities and renderer</li>
-                <li>Installed fonts</li>
-                <li>Browser plugins and extensions</li>
-                <li>User agent and browser features</li>
-                <li>Hardware capabilities</li>
-            </ul>
-            <p style="margin-top: 10px;">Higher scores mean your browser is more uniquely identifiable across the web.</p>
-        </div>`;
-        
-        html += `<p style="margin-bottom: 15px;">${data.interpretation}</p>`;
-        
-        // Make the elements analyzed count clickable with explanation
-        html += this.createDataItem('Fingerprinting Elements Analyzed', 
-            `<span id="fingerprint-elements" class="clickable-info" 
-             style="cursor: pointer; text-decoration: underline dotted; position: relative;"
-             title="Click for details">${data.fingerprintingElements}</span>`);
-        
-        // Add a hidden tooltip for fingerprinting elements explanation
-        html += `<div id="fingerprint-elements-details" class="fingerprint-details hidden" style="
-            background-color: rgba(13, 18, 30, 0.8);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0 15px;
-            border: 1px solid var(--border-color);
-        ">
-            <h5>Fingerprinting Elements Analyzed (${data.fingerprintingElements})</h5>
-            <p>These specific elements were analyzed to calculate your fingerprint uniqueness:</p>
-            <ol style="margin-left: 20px; margin-top: 10px;">
-                <li><strong>Screen Properties:</strong> Width, height, color depth, pixel ratio</li>
-                <li><strong>Canvas Fingerprinting:</strong> Rendering differences, text metrics</li>
-                <li><strong>WebGL Information:</strong> Renderer, vendor, supported extensions</li>
-                <li><strong>Browser Details:</strong> User agent, platform, language preferences</li>
-                <li><strong>Font Detection:</strong> System fonts available to the browser</li>
-                <li><strong>Browser Plugins:</strong> Installed plugins and their properties</li>
-                <li><strong>Hardware Information:</strong> CPU cores, memory, device orientation</li>
-                <li><strong>Media Capabilities:</strong> Supported codecs and formats</li>
-                <li><strong>Audio Processing:</strong> AudioContext fingerprinting</li>
-                <li><strong>Time and Timezone:</strong> System time precision measurements</li>
-            </ol>
-            <p style="margin-top: 10px;">Each browser has a unique combination of these elements, creating a "fingerprint" that can be used to track you across websites.</p>
-        </div>`;
-        
-        html += '</div>';
-        container.innerHTML = html;
-    }
-
-   
 
     renderCarbonFootprintData(container, data) {
         let html = '<div class="data-card">';
@@ -2739,440 +2851,346 @@ renderFingerprintUniquenessData(container, data) {
     }
 
     renderFingerprintingData(container, data) {
-        let html = '<div class="data-grid">';
+    let html = '<div class="data-grid">';
+    
+    // Canvas fingerprinting
+    html += '<div class="data-card"><h4>Canvas Fingerprinting</h4>';
+    if (typeof data.canvas === 'object' && !data.canvas.error) {
+        html += this.createDataItem('Data URL Length', data.canvas.dataUrlLength);
+        html += this.createDataItem('Hash', data.canvas.hash);
         
-        // Canvas fingerprinting
-        html += '<div class="data-card"><h4>Canvas Fingerprinting</h4>';
-        if (typeof data.canvas === 'object' && !data.canvas.error) {
-            html += this.createDataItem('Data URL Length', data.canvas.dataUrlLength);
-            html += this.createDataItem('Hash', data.canvas.hash);
-            html += this.createDataItem('Canvas Support', 'Available');
-        } else {
-            html += `<p class="unavailable">${data.canvas?.error || 'Canvas fingerprinting unavailable'}</p>`;
+        if (data.canvas.imageData) {
+            html += `<div class="fingerprint-example">
+                <h5>Canvas Rendering Sample:</h5>
+                <img src="${data.canvas.imageData}" alt="Canvas Fingerprint Sample" style="max-width: 100%; border: 1px solid var(--border-color);">
+            </div>`;
         }
-        html += '</div>';
+    } else {
+        const errorMsg = data.canvas?.error || 'Canvas fingerprinting data not available';
+        html += `<p class="unavailable">${errorMsg}</p>`;
+    }
+    html += '</div>';
+    
+    // WebGL fingerprinting
+    html += '<div class="data-card"><h4>WebGL Fingerprinting</h4>';
+    if (typeof data.webGL === 'object' && !data.webGL.error) {
+        html += this.createDataItem('Vendor', data.webGL.vendor || 'Not available');
+        html += this.createDataItem('Renderer', data.webGL.renderer || 'Not available');
         
-        // WebGL info
-        html += '<div class="data-card"><h4>WebGL Information</h4>';
-        if (typeof data.webGL === 'object' && !data.webGL.error) {
-            html += this.createDataItem('Vendor', data.webGL.vendor);
-            html += this.createDataItem('Renderer', data.webGL.renderer);
-            html += this.createDataItem('Version', data.webGL.version);
-            
-            if (data.webGL.unmaskedVendor) {
-                html += this.createDataItem('Unmasked Vendor', data.webGL.unmaskedVendor);
-                html += this.createDataItem('Unmasked Renderer', data.webGL.unmaskedRenderer);
-            }
-            
-            if (data.webGL.extensions && data.webGL.extensions.length) {
-                html += this.createDataItem('Extensions', data.webGL.extensions.join(', '));
-            }
-        } else {
-            html += `<p class="unavailable">${data.webGL.error || 'WebGL information unavailable'}</p>`;
+        if (data.webGL.unmaskedVendor) {
+            html += this.createDataItem('Unmasked Vendor', data.webGL.unmaskedVendor);
         }
-        html += '</div>';
         
-        // Audio fingerprinting
-        html += '<div class="data-card"><h4>Audio Fingerprinting</h4>';
-        if (typeof data.audio === 'object' && !data.audio.error) {
-            Object.entries(data.audio).forEach(([prop, value]) => {
-                html += this.createDataItem(this.formatPropertyName(prop), value);
+        if (data.webGL.unmaskedRenderer) {
+            html += this.createDataItem('Unmasked Renderer', data.webGL.unmaskedRenderer);
+        }
+        
+        html += this.createDataItem('Hash', data.webGL.hash || 'Not available');
+    } else {
+        const errorMsg = data.webGL?.error || 'WebGL fingerprinting data not available';
+        html += `<p class="unavailable">${errorMsg}</p>`;
+    }
+    html += '</div>';
+    
+    // Audio fingerprinting
+    html += '<div class="data-card"><h4>Audio Fingerprinting</h4>';
+    if (typeof data.audio === 'object' && !data.audio.error) {
+        html += this.createDataItem('Hash', data.audio.hash || 'Not available');
+        
+        if (data.audio.summaryValues && data.audio.summaryValues.length) {
+            html += this.createDataItem('Sample Values', data.audio.summaryValues.join(', '));
+        }
+    } else {
+        const errorMsg = data.audio?.error || 'Audio fingerprinting data not available';
+        html += `<p class="unavailable">${errorMsg}</p>`;
+    }
+    html += '</div>';
+    
+    // Font fingerprinting
+    html += '<div class="data-card"><h4>Font Fingerprinting</h4>';
+    if (typeof data.fonts === 'object' && !data.fonts.error) {
+        html += this.createDataItem('Detected Fonts', data.fonts.detectedFonts || 'Not available');
+        html += this.createDataItem('Hash', data.fonts.hash || 'Not available');
+    } else {
+        const errorMsg = data.fonts?.error || 'Font fingerprinting data not available';
+        html += `<p class="unavailable">${errorMsg}</p>`;
+    }
+    html += '</div>';
+    
+    // Other fingerprinting methods
+    html += '<div class="data-card"><h4>Other Fingerprinting Methods</h4>';
+    
+    // Hardware concurrency
+    if (data.hardware) {
+        html += this.createDataItem('Hardware Concurrency Hash', data.hardware.hash || 'Not available');
+    }
+    
+    // Timezone
+    if (data.timezone) {
+        html += this.createDataItem('Timezone', data.timezone.timezone || 'Not available');
+        html += this.createDataItem('Timezone Offset', data.timezone.offset !== undefined ? data.timezone.offset : 'Not available');
+    }
+    
+    // Language
+    if (data.language) {
+        html += this.createDataItem('Language Hash', data.language.hash || 'Not available');
+    }
+    
+    html += '</div>';
+    
+    html += '</div>'; // Close data grid
+    container.innerHTML = html;
+} 
+renderInteractionData(container, data) {
+    let html = '<div class="data-grid">';
+    
+    // Input Methods
+    html += '<div class="data-card"><h4>Input Methods</h4>';
+    if (data.inputMethods) {
+        Object.entries(data.inputMethods).forEach(([method, available]) => {
+            html += this.createDataItem(this.formatPropertyName(method), 
+                available ? '<span class="success">Available</span>' : '<span class="unavailable">Not Available</span>');
+        });
+    } else {
+        html += '<p class="unavailable">Input methods data not available</p>';
+    }
+    html += '</div>';
+    
+    // Touch Capabilities
+    html += '<div class="data-card"><h4>Touch Capabilities</h4>';
+    if (data.touchCapabilities) {
+        html += this.createDataItem('Touch Support', data.touchCapabilities.touchSupport || 'Not available');
+        html += this.createDataItem('Max Touch Points', data.touchCapabilities.maxTouchPoints || 'Not available');
+        
+        if (data.touchCapabilities.touchEvents) {
+            html += this.createDataItem('Touch Events', data.touchCapabilities.touchEvents ? 'Supported' : 'Not Supported');
+        }
+        
+        if (data.touchCapabilities.touchAction) {
+            html += this.createDataItem('Touch Action CSS', data.touchCapabilities.touchAction ? 'Supported' : 'Not Supported');
+        }
+    } else {
+        html += '<p class="unavailable">Touch capabilities data not available</p>';
+    }
+    html += '</div>';
+    
+    // Pointer Capabilities
+    html += '<div class="data-card"><h4>Pointer Capabilities</h4>';
+    if (data.pointerCapabilities) {
+        html += this.createDataItem('Pointer Events', data.pointerCapabilities.pointerEvents || 'Not available');
+        
+        if (data.pointerCapabilities.pointerTypes) {
+            html += this.createDataItem('Pointer Types', Array.isArray(data.pointerCapabilities.pointerTypes) ? 
+                data.pointerCapabilities.pointerTypes.join(', ') : 'Not available');
+        }
+    } else {
+        html += '<p class="unavailable">Pointer capabilities data not available</p>';
+    }
+    html += '</div>';
+    
+    // Keyboard & Mouse
+    html += '<div class="data-card"><h4>Keyboard & Mouse</h4>';
+    if (data.keyboardMouse) {
+        Object.entries(data.keyboardMouse).forEach(([feature, value]) => {
+            html += this.createDataItem(this.formatPropertyName(feature), value);
+        });
+    } else {
+        html += '<p class="unavailable">Keyboard and mouse data not available</p>';
+    }
+    html += '</div>';
+    
+    // Gamepad API
+    html += '<div class="data-card"><h4>Gamepad API</h4>';
+    if (data.gamepad) {
+        html += this.createDataItem('Gamepad API Support', data.gamepad.supported ? 
+            '<span class="success">Supported</span>' : 
+            '<span class="unavailable">Not Supported</span>');
+        
+        if (data.gamepad.controllers && data.gamepad.controllers.length > 0) {
+            html += '<h5>Connected Controllers</h5>';
+            data.gamepad.controllers.forEach(controller => {
+                html += this.createDataItem('ID', controller.id || 'Unknown');
+                html += this.createDataItem('Buttons', controller.buttons || '0');
+                html += this.createDataItem('Axes', controller.axes || '0');
             });
-        } else {
-            html += `<p class="unavailable">${data.audio.error || 'Audio fingerprinting unavailable'}</p>`;
+        } else if (data.gamepad.supported) {
+            html += '<p>No gamepads currently connected.</p>';
         }
-        html += '</div>';
-        
-        html += '</div>'; // Close grid
-        container.innerHTML = html;
+    } else {
+        html += '<p class="unavailable">Gamepad API data not available</p>';
     }
-
-    renderInteractionData(container, data) {
-        let html = '<div class="data-grid">';
-        
-        // Pointer capabilities
-        if (data.pointer) {
-            html += '<div class="data-card"><h4>Pointer & Touch Capabilities</h4>';
-            html += this.createDataItem('Touch Points', data.pointer.maxTouchPoints);
-            html += this.createDataItem('Pointer Events', data.pointer.pointerEnabled ? 'Supported' : 'Not Supported');
-            html += this.createDataItem('Touch Events', data.pointer.touchEnabled ? 'Supported' : 'Not Supported');
-            html += this.createDataItem('MS Pointer', data.pointer.msPointerEnabled ? 'Supported' : 'Not Supported');
-            html += '</div>';
-        }
-        
-        // Keyboard
-        if (data.keyboard) {
-            html += '<div class="data-card"><h4>Keyboard Information</h4>';
-            html += this.createDataItem('Keyboard Layout Map', data.keyboard.keyboardLayoutMap ? 'Available' : 'Not Available');
-            html += '</div>';
-        }
-        
-        // Gamepad - Fix the error here
-        if (data.gamepad) {
-            html += '<div class="data-card"><h4>Gamepad API</h4>';
-            html += this.createDataItem('Gamepad API', data.gamepad.available ? 'Available' : 'Not Available');
-            if (data.gamepad.gamepads && data.gamepad.gamepads.length) {
-                html += this.createDataItem('Connected Gamepads', data.gamepad.gamepads.join(', '));
-            } else {
-                html += this.createDataItem('Connected Gamepads', 'None detected');
-            }
-            html += '</div>';
-        }
-        
-        // Clipboard
-        if (data.clipboard) {
-            html += '<div class="data-card"><h4>Clipboard Access</h4>';
-            html += this.createDataItem('Clipboard API', data.clipboard.available ? 'Available' : 'Not Available');
-            html += this.createDataItem('Read Permission', data.clipboard.readPermission);
-            html += this.createDataItem('Write Permission', data.clipboard.writePermission);
-            html += '</div>';
-        }
-        
-        // Vibration
-        if (data.vibration) {
-            html += '<div class="data-card"><h4>Vibration API</h4>';
-            html += this.createDataItem('Vibration API', data.vibration.available ? 'Available' : 'Not Available');
-            html += '</div>';
-        }
-        
-        html += '</div>'; // Close grid
-        container.innerHTML = html;
-    }
-
+    html += '</div>';
+    
+    html += '</div>'; // Close grid
+    container.innerHTML = html;
+}
     renderMediaData(container, data) {
         let html = '<div class="data-grid">';
         
-        // Video input
+        // Video input devices
         html += '<div class="data-card"><h4>Video Input Devices</h4>';
-        if (data.videoinput && data.videoinput.length) {
+        if (data.videoinput && data.videoinput.length > 0) {
             data.videoinput.forEach(device => {
-                html += this.createDataItem(device.label, device.deviceId);
+                html += this.createDataItem(device.label || 'Unnamed Camera', device.deviceId);
             });
         } else {
-            html += '<p class="unavailable">No video input devices found</p>';
+            html += '<p class="unavailable">No video input devices detected or permission denied</p>';
         }
         html += '</div>';
         
-        // Audio input
+        // Audio input devices
         html += '<div class="data-card"><h4>Audio Input Devices</h4>';
-        if (data.audioinput && data.audioinput.length) {
+        if (data.audioinput && data.audioinput.length > 0) {
             data.audioinput.forEach(device => {
-                html += this.createDataItem(device.label, device.deviceId);
+                html += this.createDataItem(device.label || 'Unnamed Microphone', device.deviceId);
             });
         } else {
-            html += '<p class="unavailable">No audio input devices found</p>';
+            html += '<p class="unavailable">No audio input devices detected or permission denied</p>';
+        }
+        html += '</div>';        
+        // Audio output devices
+        html += '<div class="data-card"><h4>Audio Output Devices</h4>';
+        if (data.audiooutput && data.audiooutput.length > 0) {
+            data.audiooutput.forEach(device => {
+                html += this.createDataItem(device.label || 'Unnamed Speaker', device.deviceId);
+            });
+        } else {
+            html += '<p class="unavailable">No audio output devices detected or permission denied</p>';
         }
         html += '</div>';
         
-        // Audio output
-        html += '<div class="data-card"><h4>Audio Output Devices</h4>';
-        if (data.audiooutput && data.audiooutput.length) {
-            data.audiooutput.forEach(device => {
-                html += this.createDataItem(device.label, device.deviceId);
-            });
-        } else {
-            html += '<p class="unavailable">No audio output devices found</p>';
-        }
+        // WebRTC support
+        html += '<div class="data-card"><h4>WebRTC Support</h4>';
+        html += this.createDataItem('WebRTC Supported', data.webrtcSupported ? 
+            '<span class="success">Yes</span>' : 
+            '<span class="unavailable">No</span>');
+        
+        html += '<p>WebRTC is a technology that enables real-time voice and video communication in the browser.</p>';
         html += '</div>';
         
         html += '</div>'; // Close grid
         container.innerHTML = html;
     }
-
     renderPermissionsData(container, data) {
         let html = '<div class="data-grid">';
         
-        // Permissions
-        html += '<div class="data-card"><h4>Permissions</h4>';
+        // Permission status card
+        html += '<div class="data-card"><h4>Permission Status</h4>';
+        
         if (data.permissions && typeof data.permissions === 'object') {
-            Object.entries(data.permissions).forEach(([name, status]) => {
-                html += this.createDataItem(this.formatPropertyName(name), this.formatPermissionStatus(status));
+            Object.entries(data.permissions).forEach(([permission, status]) => {
+                let statusClass = '';
+                let statusLabel = status;
+                
+                if (status === 'granted') {
+                    statusClass = 'success';
+                    statusLabel = 'Granted';
+                } else if (status === 'denied') {
+                    statusClass = 'warning';
+                    statusLabel = 'Denied';
+                } else if (status === 'prompt') {
+                    statusClass = 'info';
+                    statusLabel = 'Will Prompt';
+                }
+                
+                html += this.createDataItem(
+                    this.formatPropertyName(permission), 
+                    `<span class="${statusClass}">${statusLabel}</span>`
+                );
             });
         } else {
-            // Fallback example permissions if data is missing
-            const examplePermissions = {
-                'Geolocation': 'prompt',
-                'Notifications': 'prompt', 
-                'Camera': 'prompt',
-                'Microphone': 'prompt',
-                'Storage': 'granted'
-            };
-            
-            html += '<p class="unavailable">Permissions API not fully supported. Example permissions:</p>';
-            Object.entries(examplePermissions).forEach(([name, status]) => {
-                html += this.createDataItem(name, this.formatPermissionStatus(status));
-            });
+            html += '<p class="unavailable">Permission status information not available</p>';
         }
+        
         html += '</div>';
         
-        // Features
-        html += '<div class="data-card"><h4>Features</h4>';
+        // Browser features card
+        html += '<div class="data-card"><h4>Browser Features</h4>';
+        
         if (data.features && typeof data.features === 'object') {
-            Object.entries(data.features).forEach(([name, supported]) => {
-                html += this.createDataItem(this.formatPropertyName(name), supported ? 'Supported' : 'Not Supported');
+            Object.entries(data.features).forEach(([feature, supported]) => {
+                html += this.createDataItem(
+                    this.formatPropertyName(feature),
+                    supported ? '<span class="success">Supported</span>' : 
+                               '<span class="unavailable">Not Supported</span>'
+                );
             });
         } else {
-            // Fallback example features if data is missing
-            const exampleFeatures = {
-                'Service Worker': navigator.serviceWorker !== undefined,
-                'Web Assembly': typeof WebAssembly === 'object',
-                'WebRTC': 'RTCPeerConnection' in window,
-                'Payment Request': 'PaymentRequest' in window,
-                'IndexedDB': 'indexedDB' in window,
-                'Web Workers': typeof Worker !== 'undefined'
-            };
-            
-            html += '<p class="unavailable">Features API data not available. Detected features:</p>';
-            Object.entries(exampleFeatures).forEach(([name, supported]) => {
-                html += this.createDataItem(name, supported ? 'Supported' : 'Not Supported');
-            });
+            html += '<p class="unavailable">Feature information not available</p>';
         }
+        
+        html += '</div>';
+        
+        // Important permissions info
+        html += '<div class="data-card"><h4>Important Permissions</h4>';
+        html += '<p>Browsers might not provide permission status until a user gesture occurs. ' +
+                'Permission status may only be accurate after an explicit request is made.</p>';
+        
+        const keyPermissions = [
+            { name: 'Geolocation', desc: 'Access to your physical location' },
+            { name: 'Camera', desc: 'Access to video input devices' },
+            { name: 'Microphone', desc: 'Access to audio input devices' },
+            { name: 'Notifications', desc: 'Send system notifications' },
+            { name: 'Push', desc: 'Receive push messages' }
+        ];
+        
+        keyPermissions.forEach(permission => {
+            const status = data.permissions ? data.permissions[permission.name.toLowerCase()] : null;
+            let statusHtml = '';
+            
+            if (status === 'granted') {
+                statusHtml = '<span class="status-badge status-yes">Granted</span>';
+            } else if (status === 'denied') {
+                statusHtml = '<span class="status-badge status-no">Denied</span>';
+            } else if (status === 'prompt') {
+                statusHtml = '<span class="status-badge status-neutral">Will Ask</span>';
+            } else {
+                statusHtml = '<span class="status-badge status-neutral">Unknown</span>';
+            }
+            
+            html += `<div class="permission-item">
+                <div class="permission-name">${permission.name} ${statusHtml}</div>
+                <div class="permission-desc">${permission.desc}</div>
+            </div>`;
+        });
+        
         html += '</div>';
         
         html += '</div>'; // Close grid
         container.innerHTML = html;
-    };
-    
-    formatPermissionStatus(status) {
-        if (status === 'granted') {
-            return '<span class="success">Granted</span>';
-        } else if (status === 'denied') {
-            return '<span class="warning">Denied</span>';
-        } else if (status === 'prompt') {
-            return '<span>Not decided (will prompt)</span>';
-        } else if (status.startsWith('Error:')) {
-            return `<span class="warning">${status}</span>`;
+    }
+
+    createDataItem(label, value) {
+        // Format boolean values for better display
+        if (typeof value === 'boolean') {
+            value = value ? '<span class="success">Yes</span>' : '<span class="unavailable">No</span>';
         }
-        return status;
-    }
-
-    formatPropertyName(name) {
-        // Convert camelCase to Title Case with spaces
-        return name
-            .replace(/([A-Z])/g, ' $1') // Insert a space before all caps
-            .replace(/^./, str => str.toUpperCase()); // Uppercase the first character
-    }
-
-    createDataItem(name, value) {
-        const formattedValue = value === undefined || value === null ? 
-            '<span class="unavailable">Not available</span>' : value;
+        
+        // Handle arrays by joining them with commas
+        if (Array.isArray(value)) {
+            value = value.join(', ');
+        }
+        
+        // Handle empty or undefined values
+        if (value === undefined || value === null || value === '') {
+            value = '<span class="unavailable">Not available</span>';
+        }
+        
+        // Create the HTML for a data item row
         return `
             <div class="data-item">
-                <span class="data-name">${name}:</span>
-                <span class="data-value">${formattedValue}</span>
+                <div class="data-label">${label}:</div>
+                <div class="data-value">${value}</div>
             </div>
         `;
     }
-
-    setActiveSection(sectionId) {
-        console.log(`Setting active section: ${sectionId}`);
-        
-        // Update active tab
-        document.querySelectorAll('.nav-tab').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.section === sectionId);
-        });
-        
-        // Show the corresponding section
-        document.querySelectorAll('.data-section').forEach(section => {
-            section.classList.toggle('hidden', section.id !== `${sectionId}-section`);
-        });
-        
-        // Track this section view in cookies for analytics
-        if (this.dataCollector && typeof this.dataCollector.trackSectionView === 'function') {
-            this.dataCollector.trackSectionView(sectionId);
-        }
-        
-        this.activeSectionId = sectionId;
-    }
-
-    exportData() {
-        if (!this.collectedData) return;
-        
-        const allData = {
-            basicData: this.collectedData,
-            enhancedData: this.enhancedData || {},
-            comprehensiveData: this.comprehensiveData || {},
-            insights: this.insights || {}
-        };
-        
-        const dataStr = JSON.stringify(allData, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = 'browser-data.json';
-        
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-    }
-
-    // Implement the summary section renderer properly
-    renderSummarySection(container, data) {
-        // Data overview - summary of all collected information
-        const summaryHtml = `
-            <div class="data-card">
-                <h4>Your Browser Profile Overview</h4>
-                <p>This is a summary of all data collected from your browser:</p>
-                
-                <div class="data-item">
-                    <span class="data-name">Browser:</span>
-                    <span class="data-value">${data.navigator?.vendor ? `${data.navigator.vendor} ${data.navigator.appName}` : data.navigator?.appName || 'Unknown'}</span>
-                </div>
-                
-                <div class="data-item">
-                    <span class="data-name">Operating System:</span>
-                    <span class="data-value">${data.navigator?.platform || 'Unknown'}</span>
-                </div>
-                
-                <div class="data-item">
-                    <span class="data-name">Screen Resolution:</span>
-                    <span class="data-value">${data.screen?.screen ? `${data.screen.screen.width}×${data.screen.screen.height}` : 'Unknown'}</span>
-                </div>
-                
-                <div class="data-item">
-                    <span class="data-name">Public IP Address:</span>
-                    <span class="data-value">${data.network?.ip?.public || 'Unknown'}</span>
-                </div>
-                
-                <div class="data-item">
-                    <span class="data-name">Location:</span>
-                    <span class="data-value">${data.network?.ip?.geolocation?.city ? 
-                        `${data.network.ip.geolocation.city}, ${data.network.ip.geolocation.country_name || data.network.ip.geolocation.country || 'Unknown'}` : 
-                        'Unknown'}</span>
-                </div>
-                
-                <div class="data-item">
-                    <span class="data-name">Connection Type:</span>
-                    <span class="data-value">${data.connection?.connection?.effectiveType || 'Unknown'}</span>
-                </div>
-            </div>
-            
-            <div class="data-card">
-                <h4>Key Statistics</h4>
-                <div class="data-item">
-                    <span class="data-name">Data Points Collected:</span>
-                    <span class="data-value">${this._countDataPoints(data)} points across ${Object.keys(data).length} categories</span>
-                </div>
-                
-                <div class="data-item">
-                    <span class="data-name">Privacy Risk Level:</span>
-                    <span class="data-value" style="color: ${this._getPrivacyColor(data)}">
-                        ${this._getPrivacyLevel(data)}
-                    </span>
-                </div>
-                
-                <div class="data-item">
-                    <span class="data-name">Device Type:</span>
-                    <span class="data-value">${this._guessDeviceType(data)}</span>
-                </div>
-            </div>
-        `;
-        
-        container.innerHTML = summaryHtml;
-    }
-
-    // Helper methods for summary section - add underscore prefix to indicate they're private methods
-    _countDataPoints(data) {
-        let count = 0;
-        
-        const countObject = (obj) => {
-            if (!obj || typeof obj !== 'object') return;
-            
-            Object.entries(obj).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                    count++;
-                    if (typeof value === 'object' && !Array.isArray(value)) {
-                        countObject(value);
-                    }
-                }
-            });
-        };
-        
-        countObject(data);
-        return count;
-    }
-
-    _getPrivacyLevel(data) {
-        // A simple heuristic based on available data
-        let riskPoints = 0;
-        
-        // Check for precise geolocation
-        if (data.geolocation && !data.geolocation.error && data.geolocation.latitude) {
-            riskPoints += 3;
-        }
-        
-        // Check for WebRTC leak potential
-        if (data.fingerprinting?.webGL?.unmaskedVendor) {
-            riskPoints += 2;
-        }
-        
-        // Check for canvas fingerprinting
-        if (data.fingerprinting?.canvas?.hash) {
-            riskPoints += 2;
-        }
-        
-        // Check for detailed system info
-        if (data.navigator?.hardwareConcurrency && data.navigator?.deviceMemory) {
-            riskPoints += 1;
-        }
-        
-        // Check for media devices
-        if (data.media?.videoinput?.length > 0 || data.media?.audioinput?.length > 0) {
-            riskPoints += 2;
-        }
-        
-        if (riskPoints >= 6) {
-            return 'High';
-        } else if (riskPoints >= 3) {
-            return 'Medium';
-        } else {
-            return 'Low';
-        }
-    }
-
-    _getPrivacyColor(data) {
-        const level = this._getPrivacyLevel(data);
-        if (level === 'High') return '#e74c3c';
-        if (level === 'Medium') return '#f39c12';
-        return '#2ecc71';
-    }
-
-        _guessDeviceType(data) {
-            // Simple heuristic to guess device type
-            const userAgent = data.navigator?.userAgent || '';
-            const platform = data.navigator?.platform || '';
-            const touch = data.interaction?.pointer?.maxTouchPoints > 0;
-            const screenWidth = data.screen?.screen?.width || 0;
     
-            if (/mobile|android|iphone|ipad|ipod/i.test(userAgent.toLowerCase())) {
-                if (screenWidth >= 768) {
-                    return 'Tablet';
-                }
-                return 'Mobile Phone';
-            } else if (/macintosh|mac os x/i.test(userAgent.toLowerCase())) {
-                return 'Mac Computer';
-            } else if (/windows|win32|win64/i.test(userAgent.toLowerCase())) {
-                return 'Windows Computer';
-            } else if (/linux/i.test(userAgent.toLowerCase()) || /linux/i.test(platform.toLowerCase())) {
-                return 'Linux Computer';
-            }
-    
-            return 'Desktop Computer';
-        }
+    formatPropertyName(name) {
+        // Format camelCase or snake_case property names to Title Case with spaces
+        return name
+            .replace(/_/g, ' ')
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())
+            .trim();
     }
-
-// Initialize UI controller when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM content loaded, creating UI controller...');
-    window.uiController = new UIController();
-    console.log('UIController instance created in window.uiController');
-});
-
-// Add a fallback for older browsers
-window.addEventListener('load', () => {
-    console.log('Window loaded event fired');
-    if (!window.uiController) {
-        console.log('Creating UIController in load event as fallback');
-        window.uiController = new UIController();
-    }
-});
+}
